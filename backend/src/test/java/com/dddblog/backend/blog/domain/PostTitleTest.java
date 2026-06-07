@@ -8,28 +8,28 @@ import org.junit.jupiter.api.Test;
 class PostTitleTest {
 
 	@Test
-	void createsPostTitle() {
+	void 제목을_생성한다() {
 		PostTitle title = new PostTitle("DDD and TDD blog");
 
 		assertThat(title.value()).isEqualTo("DDD and TDD blog");
 	}
 
 	@Test
-	void rejectsNullTitle() {
+	void 제목이_null이면_생성할_수_없다() {
 		assertThatThrownBy(() -> new PostTitle(null))
 			.isInstanceOf(IllegalArgumentException.class)
 			.hasMessage("Post title must not be blank.");
 	}
 
 	@Test
-	void rejectsBlankTitle() {
+	void 제목이_blank이면_생성할_수_없다() {
 		assertThatThrownBy(() -> new PostTitle("   "))
 			.isInstanceOf(IllegalArgumentException.class)
 			.hasMessage("Post title must not be blank.");
 	}
 
 	@Test
-	void rejectsTitleLongerThanOneHundredCharacters() {
+	void 제목이_100자를_초과하면_생성할_수_없다() {
 		String title = "a".repeat(101);
 
 		assertThatThrownBy(() -> new PostTitle(title))
@@ -38,7 +38,7 @@ class PostTitleTest {
 	}
 
 	@Test
-	void acceptsTitleWithOneHundredCharacters() {
+	void 제목은_100자까지_허용한다() {
 		String title = "a".repeat(100);
 
 		PostTitle postTitle = new PostTitle(title);
