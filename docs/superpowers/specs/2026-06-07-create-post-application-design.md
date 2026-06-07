@@ -102,6 +102,8 @@ com.dddblog.backend.blog.application
 - 내부 값은 `Long`이다.
 - 값은 `null`일 수 없다.
 - 값은 1 이상이어야 한다.
+- 값이 `null`이면 `Post id must not be null.` 메시지로 실패한다.
+- 값이 1보다 작으면 `Post id must be positive.` 메시지로 실패한다.
 - `value()` accessor를 제공한다.
 - `equals`, `hashCode`, `toString`을 구현한다.
 
