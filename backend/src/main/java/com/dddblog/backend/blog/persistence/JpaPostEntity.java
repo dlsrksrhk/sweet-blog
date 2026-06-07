@@ -16,6 +16,7 @@ import jakarta.persistence.JoinColumn;
 import jakarta.persistence.JoinTable;
 import jakarta.persistence.ManyToMany;
 import jakarta.persistence.Table;
+import jakarta.persistence.UniqueConstraint;
 
 @Entity
 @Table(name = "posts")
@@ -45,7 +46,8 @@ class JpaPostEntity {
 	@JoinTable(
 		name = "post_tags",
 		joinColumns = @JoinColumn(name = "post_id"),
-		inverseJoinColumns = @JoinColumn(name = "tag_id")
+		inverseJoinColumns = @JoinColumn(name = "tag_id"),
+		uniqueConstraints = @UniqueConstraint(columnNames = {"post_id", "tag_id"})
 	)
 	private Set<JpaTagEntity> tags = new LinkedHashSet<>();
 
