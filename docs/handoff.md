@@ -7,11 +7,11 @@
 - Java for this project: `C:\java\jdk-21`
 - Spring Boot: `3.5.0`
 - Current branch: `master`
-- Working tree at handoff time: clean
-- Latest feature commit: `ad3f45c fix: make post persistence transactional`
+- Working tree before handoff update: clean
+- Latest implementation commit: `234fb74 fix: redact password hash string representation`
 - Latest docs commits:
-  - `8e18850 docs: add jpa post repository plan`
-  - `4c6ed1d docs: add jpa post repository design`
+  - `04cf81a docs: add member domain plan`
+  - `49f2710 docs: add member domain design`
 
 ## Project Rules
 
@@ -28,6 +28,7 @@ Important local rules:
 - Before implementing the next slice, run `superpowers:brainstorming`.
 - After approved design, write a Korean spec under `docs/superpowers/specs`.
 - Then use `superpowers:writing-plans`.
+- For implementation plans, use an isolated worktree before coding.
 
 ## Implemented So Far
 
@@ -44,8 +45,10 @@ Important local rules:
 - `docs/superpowers/plans/2026-06-07-create-post-application.md`
 - `docs/superpowers/specs/2026-06-07-jpa-post-repository-design.md`
 - `docs/superpowers/plans/2026-06-07-jpa-post-repository.md`
+- `docs/superpowers/specs/2026-06-07-member-domain-design.md`
+- `docs/superpowers/plans/2026-06-07-member-domain.md`
 
-### Domain Layer
+### Blog Domain Layer
 
 Package:
 
@@ -64,7 +67,7 @@ Implemented:
 - `PostTitle`
 - `TagName`
 
-Important domain behavior:
+Important blog domain behavior:
 
 - `Post` has no persistence ID field yet.
 - `PostId` is used as repository save result for now.
@@ -75,13 +78,65 @@ Important domain behavior:
 - `Post` rejects more than 10 tags.
 - `Post` rejects duplicate normalized tags.
 - `TagName` trims and lowercases with `Locale.ROOT`.
+- `AuthorId` is still a Blog-context value object used to reference the author/member ID.
 
-Domain package is still pure Java:
+Blog domain package is still pure Java:
 
 - No Spring annotations.
 - No JPA annotations.
 
-### Application Layer
+### Member Domain Layer
+
+Package:
+
+```text
+backend/src/main/java/com/dddblog/backend/member/domain
+```
+
+Implemented:
+
+- `LoginId`
+- `Member`
+- `MemberId`
+- `MemberName`
+- `MemberRole`
+- `MemberStatus`
+- `Nickname`
+- `PasswordHash`
+
+Important member domain behavior:
+
+- `Member.register(...)` creates a new member with:
+  - `MemberRole.MEMBER`
+  - `MemberStatus.ACTIVE`
+- `Member` validates all constructor dependencies are non-null.
+- `MemberId` is Long-backed and must be non-null and positive.
+- `MemberName` trims input and allows 1 to 30 characters.
+- `Nickname` trims input and allows 2 to 20 characters.
+- `LoginId` trims input and allows 4 to 30 characters.
+- `PasswordHash` rejects null/blank and stores the given hash string unchanged.
+- `PasswordHash.value()` returns the stored hash.
+- `PasswordHash.toString()` returns `[PROTECTED]` to avoid accidental credential-material leakage.
+- `MemberRole` values are `MEMBER`, `ADMIN`.
+- `MemberStatus` values are `ACTIVE`, `INACTIVE`.
+
+Important exclusions still true:
+
+- No member application service yet.
+- No `MemberRepository` port yet.
+- No member JPA entity/repository yet.
+- No signup API yet.
+- No BCrypt/password encoder integration yet.
+- No login/JWT integration yet.
+- No login ID or nickname duplicate check yet.
+- No relation/FK between `posts.author_id` and a member table yet.
+
+Member domain package is pure Java:
+
+- No Spring annotations.
+- No JPA annotations.
+
+### Blog Application Layer
 
 Package:
 
@@ -109,9 +164,9 @@ Important wiring note:
 - `CreatePostService` is still a pure Java class.
 - It is not annotated with `@Service`.
 - There is not yet a Spring configuration that exposes `CreatePostService` as a bean.
-- The next API slice must decide how to wire it.
+- A future API slice must decide how to wire it.
 
-### Persistence Layer
+### Blog Persistence Layer
 
 Package:
 
@@ -178,19 +233,25 @@ Backend Gradle dependencies include:
 
 ### Tests
 
-Domain tests:
+Blog domain tests:
 
 ```text
 backend/src/test/java/com/dddblog/backend/blog/domain
 ```
 
-Application tests:
+Member domain tests:
+
+```text
+backend/src/test/java/com/dddblog/backend/member/domain
+```
+
+Blog application tests:
 
 ```text
 backend/src/test/java/com/dddblog/backend/blog/application
 ```
 
-Persistence tests:
+Blog persistence tests:
 
 ```text
 backend/src/test/java/com/dddblog/backend/blog/persistence
@@ -248,7 +309,7 @@ Check no Spring/JPA annotations in pure domain/application packages:
 
 ```powershell
 cd C:\dev\study\ddd-blog\backend
-Get-ChildItem -Path .\src\main\java\com\dddblog\backend\blog\domain,.\src\main\java\com\dddblog\backend\blog\application -Recurse -Filter *.java | Select-String -Pattern '@Component|@Service|@Repository|@Entity|@Embeddable|@Table|@Transactional'
+Get-ChildItem -Path .\src\main\java\com\dddblog\backend\blog\domain,.\src\main\java\com\dddblog\backend\blog\application,.\src\main\java\com\dddblog\backend\member\domain -Recurse -Filter *.java | Select-String -Pattern '@Component|@Service|@Repository|@Entity|@Embeddable|@Table|@Transactional'
 ```
 
 Expected: no output.
@@ -258,21 +319,18 @@ Expected: no output.
 Most relevant recent commits:
 
 ```text
+234fb74 fix: redact password hash string representation
+0339e15 feat: add member aggregate
+dd6d178 feat: add member password hash and enums
+d5cd5bc feat: add member profile value objects
+480e7aa feat: add member id value object
+04cf81a docs: add member domain plan
+49f2710 docs: add member domain design
+9e31656 docs: update handoff for create post api
 ad3f45c fix: make post persistence transactional
 1f5973a test: reject null post persistence
 898c45a test: verify post tag reuse
 d9ebf2c test: reload persisted post values
-b9ff2a0 test: verify persisted post values
-4f195b6 feat: add jpa post repository adapter
-8d0b44e fix: add post tag unique constraint
-f71583d feat: add jpa post entities
-726902c test: add failing jpa post repository test
-9a9ea4f build: add h2 test dependency
-18d4689 chore: ignore local worktrees
-8e18850 docs: add jpa post repository plan
-4c6ed1d docs: add jpa post repository design
-9b49a7c docs: add project handoff
-bc3002c feat: add create post service
 ```
 
 ## Recommended Next Step
@@ -280,56 +338,86 @@ bc3002c feat: add create post service
 Recommended next brainstorming topic:
 
 ```text
-글 작성 API 1차
+회원가입 애플리케이션 서비스 1차
 ```
+
+Why this is recommended:
+
+- The user explicitly chose to develop `Member` before the first post creation API.
+- Pure `Member` domain is now implemented.
+- The next natural DDD/TDD slice is to wrap member creation in an application use case before adding JPA/API/auth.
 
 Recommended scope:
 
-- Add the first HTTP entry point for creating posts.
-- Start with `POST /api/posts`.
-- Keep current domain/application/persistence style.
-- Wire `CreatePostService` into Spring explicitly.
-- Use `JpaPostRepositoryAdapter` as the real `PostRepository` implementation.
-- Keep JWT/auth out of this slice unless the user explicitly expands scope.
-- Decide during brainstorming how to supply `authorId` before JWT exists.
-- Avoid post list/detail/read API in this slice.
-- Avoid update/delete/status-change API in this slice.
-- Keep tests Korean scenario-style.
+- Add a `member.application` package.
+- Add a `RegisterMemberCommand`.
+- Add a `RegisterMemberService`.
+- Add a `MemberRepository` application port.
+- Add a test fake repository under `src/test`.
+- Keep `RegisterMemberService` pure Java, with no Spring annotation.
+- Keep BCrypt/password hashing out of this slice unless explicitly approved.
+- For this slice, accept an already-hashed password through the command as `passwordHash`.
+- Check duplicate login ID and duplicate nickname through repository-port methods.
+- Return `MemberId` after successful registration.
+- Avoid JPA persistence, API, login, JWT, password encoder, and security configuration in this slice.
+- Keep tests Korean scenario-style and Spring Context-free.
 
 Suggested conservative path:
 
-- Create an API/controller adapter package separate from domain/application.
-- Add request/response DTOs for create post.
-- Add a Spring configuration or adapter-specific bean registration for `CreatePostService`.
-- For API 1차, include `authorId` in request body as a temporary learning shortcut.
-- Return generated `postId` in response.
-- Use a focused Spring MVC/API test to verify HTTP request -> command -> service path.
-- Add an integration test only if wiring `CreatePostService` + JPA adapter through Spring needs verification.
+- `RegisterMemberCommand` fields:
+  - `Long memberId`
+  - `String name`
+  - `String nickname`
+  - `String loginId`
+  - `String passwordHash`
+- `MemberRepository` methods:
+  - `boolean existsByLoginId(LoginId loginId)`
+  - `boolean existsByNickname(Nickname nickname)`
+  - `MemberId save(Member member)`
+- `RegisterMemberService.register(command)` flow:
+  1. Reject null command.
+  2. Convert primitives to value objects.
+  3. Check duplicate login ID.
+  4. Check duplicate nickname.
+  5. Create `Member.register(...)`.
+  6. Save through repository.
+  7. Return saved `MemberId`.
+- Test with `FakeMemberRepository`.
 
 Likely questions to ask during brainstorming:
 
-1. Before JWT exists, should the first create-post API receive `authorId` in the request body, use a fixed test author ID, or introduce a temporary authentication stub?
-2. Should `CreatePostService` become a Spring bean through `@Service`, or should it remain pure and be registered through configuration?
-3. Should the first API test use `@WebMvcTest` with a mocked service, or `@SpringBootTest`/full wiring to include the real application service and JPA adapter?
-4. What should `POST /api/posts` return first: only `{ "postId": 1 }`, `201 Created` with `Location`, or a fuller response?
-5. How should domain `IllegalArgumentException` be translated in the first API slice: simple `400 Bad Request` handler now, or postpone global exception handling?
+1. Should `RegisterMemberCommand` receive `memberId` for now, or should repository/fake generate it?
+2. Should this slice accept `passwordHash` directly, or introduce a password-hashing port now?
+3. Should duplicate login ID/nickname exceptions use plain `IllegalArgumentException` first, or introduce named domain/application exceptions?
+4. Should `MemberRepository.save(Member)` return `MemberId`, matching current `PostRepository.save(Post)` style?
+5. Should exact boundary-allowed tests be added for `MemberName`, `Nickname`, and `LoginId` now, or leave them as a later test-hardening task?
 
 Recommended answer defaults if the user wants the conservative path:
 
-- Use request body `authorId` temporarily.
-- Keep `CreatePostService` pure and register it via configuration.
-- Start with `@WebMvcTest` for controller contract plus one Spring wiring/integration test if needed.
-- Return `201 Created` and body `{ "postId": <id> }`.
-- Add a minimal exception handler for `IllegalArgumentException -> 400 Bad Request` only if the API test needs it.
+- Let repository/fake generate `MemberId` if registration should resemble persistence-generated IDs.
+- If minimizing changes, include `memberId` in command for now; but this is less realistic.
+- Keep password hashing out for one more slice and accept `passwordHash`.
+- Use `IllegalArgumentException` for duplicate checks initially.
+- Use `MemberRepository.save(Member)` returning `MemberId`, consistent with `PostRepository.save(Post)`.
+- Add boundary-allowed tests only if the user wants to harden existing value-object coverage before moving into application service.
+
+Alternative next step:
+
+```text
+글 작성 API 1차
+```
+
+This was the previous recommendation, but after choosing and completing `Member` domain first, member registration application service is now the cleaner next slice.
 
 ## Notes For Next Agent
 
 - The user wants to continue in a new chat.
 - Start by reading this handoff.
-- Then run `superpowers:brainstorming` for `글 작성 API 1차`.
+- Then run `superpowers:brainstorming` for `회원가입 애플리케이션 서비스 1차`.
 - Do not implement immediately.
 - Ask one clarifying question at a time.
 - The user prefers Korean documentation and Korean test method names.
-- Preserve the pure domain/application style unless a new approved spec changes it.
+- Preserve pure domain/application style unless a new approved spec changes it.
 - Do not add unrelated refactors or cleanup.
-- `master` is currently the working branch after the JPA repository slice was merged.
+- Use an isolated worktree before implementation.
+- Current `master` includes the completed member domain slice.
