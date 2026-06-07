@@ -4,6 +4,7 @@ import java.util.LinkedHashSet;
 import java.util.Set;
 
 import org.springframework.stereotype.Repository;
+import org.springframework.transaction.annotation.Transactional;
 
 import com.dddblog.backend.blog.application.PostRepository;
 import com.dddblog.backend.blog.domain.Post;
@@ -25,6 +26,7 @@ public class JpaPostRepositoryAdapter implements PostRepository {
 	}
 
 	@Override
+	@Transactional
 	public PostId save(Post post) {
 		if (post == null) {
 			throw new IllegalArgumentException("Post must not be null.");
