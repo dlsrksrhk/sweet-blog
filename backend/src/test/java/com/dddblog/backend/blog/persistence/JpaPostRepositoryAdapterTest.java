@@ -7,6 +7,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
+import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.context.annotation.Import;
 
 import com.dddblog.backend.blog.domain.AuthorId;
@@ -28,6 +29,9 @@ class JpaPostRepositoryAdapterTest {
 	@Autowired
 	private SpringDataJpaPostRepository springDataPostRepository;
 
+	@Autowired
+	private TestEntityManager entityManager;
+
 	@Test
 	void 글을_저장하면_ID를_반환한다() {
 		Post post = createPost();
@@ -42,6 +46,9 @@ class JpaPostRepositoryAdapterTest {
 		Post post = createPost();
 
 		PostId postId = postRepository.save(post);
+
+		entityManager.flush();
+		entityManager.clear();
 
 		JpaPostEntity savedPost = springDataPostRepository.findById(postId.value()).orElseThrow();
 		assertThat(savedPost.authorId()).isEqualTo(1L);
