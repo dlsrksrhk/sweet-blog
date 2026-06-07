@@ -1,6 +1,7 @@
 package com.dddblog.backend.blog.persistence;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import java.util.List;
 
@@ -81,6 +82,15 @@ class JpaPostRepositoryAdapterTest {
 		assertThat(springDataTagRepository.findAll())
 			.extracting(JpaTagEntity::name)
 			.containsExactlyInAnyOrder("ddd", "tdd");
+	}
+
+	@Test
+	void 글이_null이면_저장할_수_없다() {
+		assertThatThrownBy(() -> postRepository.save(null))
+			.isInstanceOf(IllegalArgumentException.class)
+			.hasMessage("Post must not be null.");
+		assertThat(springDataPostRepository.findAll()).isEmpty();
+		assertThat(springDataTagRepository.findAll()).isEmpty();
 	}
 
 	private Post createPost() {
