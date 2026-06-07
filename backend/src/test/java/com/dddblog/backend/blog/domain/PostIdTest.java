@@ -18,7 +18,7 @@ class PostIdTest {
 	void 글_ID가_null이면_생성할_수_없다() {
 		assertThatThrownBy(() -> new PostId(null))
 			.isInstanceOf(IllegalArgumentException.class)
-			.hasMessage("Post id must be positive.");
+			.hasMessage("Post id must not be null.");
 	}
 
 	@Test

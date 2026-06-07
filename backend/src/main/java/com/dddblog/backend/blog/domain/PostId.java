@@ -7,7 +7,10 @@ public final class PostId {
 	private final Long value;
 
 	public PostId(Long value) {
-		if (value == null || value < 1) {
+		if (value == null) {
+			throw new IllegalArgumentException("Post id must not be null.");
+		}
+		if (value < 1) {
 			throw new IllegalArgumentException("Post id must be positive.");
 		}
 		this.value = value;
