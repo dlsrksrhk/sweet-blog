@@ -1,5 +1,6 @@
 package com.dddblog.backend.blog.domain;
 
+import java.util.HashSet;
 import java.util.List;
 
 public final class Post {
@@ -52,7 +53,14 @@ public final class Post {
 		if (tags.stream().anyMatch(tag -> tag == null)) {
 			throw new IllegalArgumentException("Post tag must not be null.");
 		}
+		validateDuplicatedTags(tags);
 		return List.copyOf(tags);
+	}
+
+	private void validateDuplicatedTags(List<TagName> tags) {
+		if (new HashSet<>(tags).size() != tags.size()) {
+			throw new IllegalArgumentException("Post tags must not be duplicated.");
+		}
 	}
 
 	public AuthorId authorId() {
