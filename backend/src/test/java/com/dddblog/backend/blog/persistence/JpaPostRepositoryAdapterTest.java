@@ -25,9 +25,35 @@ class JpaPostRepositoryAdapterTest {
 	@Autowired
 	private JpaPostRepositoryAdapter postRepository;
 
+	@Autowired
+	private SpringDataJpaPostRepository springDataPostRepository;
+
 	@Test
 	void 글을_저장하면_ID를_반환한다() {
-		Post post = new Post(
+		Post post = createPost();
+
+		PostId postId = postRepository.save(post);
+
+		assertThat(postId.value()).isPositive();
+	}
+
+	@Test
+	void 글을_저장하면_본문_값이_posts에_저장된다() {
+		Post post = createPost();
+
+		PostId postId = postRepository.save(post);
+
+		JpaPostEntity savedPost = springDataPostRepository.findById(postId.value()).orElseThrow();
+		assertThat(savedPost.authorId()).isEqualTo(1L);
+		assertThat(savedPost.title()).isEqualTo("DDD 시작하기");
+		assertThat(savedPost.contentMarkdown()).isEqualTo("# DDD\n\n본문");
+		assertThat(savedPost.summary()).isEqualTo("DDD 소개");
+		assertThat(savedPost.status()).isEqualTo(PostStatus.DRAFT);
+		assertThat(savedPost.tags()).extracting(JpaTagEntity::name).containsExactlyInAnyOrder("ddd", "tdd");
+	}
+
+	private Post createPost() {
+		return new Post(
 			new AuthorId(1L),
 			new PostTitle("DDD 시작하기"),
 			new PostContent("# DDD\n\n본문"),
@@ -35,9 +61,5 @@ class JpaPostRepositoryAdapterTest {
 			List.of(new TagName("ddd"), new TagName("tdd")),
 			PostStatus.DRAFT
 		);
-
-		PostId postId = postRepository.save(post);
-
-		assertThat(postId.value()).isPositive();
 	}
 }
