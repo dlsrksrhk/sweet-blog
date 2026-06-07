@@ -49,6 +49,9 @@ public final class Post {
 		if (tags == null) {
 			return List.of();
 		}
+		if (tags.stream().anyMatch(tag -> tag == null)) {
+			throw new IllegalArgumentException("Post tag must not be null.");
+		}
 		return List.copyOf(tags);
 	}
 

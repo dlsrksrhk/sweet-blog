@@ -167,6 +167,24 @@ class PostTest {
 	}
 
 	@Test
+	void 태그_목록에_null이_있으면_글을_생성할_수_없다() {
+		List<TagName> tags = new java.util.ArrayList<>();
+		tags.add(new TagName("ddd"));
+		tags.add(null);
+
+		assertThatThrownBy(() -> new Post(
+			new AuthorId(1L),
+			new PostTitle("DDD 시작하기"),
+			new PostContent("본문"),
+			new PostSummary("요약"),
+			tags,
+			PostStatus.DRAFT
+		))
+			.isInstanceOf(IllegalArgumentException.class)
+			.hasMessage("Post tag must not be null.");
+	}
+
+	@Test
 	void 외부에_노출된_태그_목록은_수정할_수_없다() {
 		Post post = new Post(
 			new AuthorId(1L),
