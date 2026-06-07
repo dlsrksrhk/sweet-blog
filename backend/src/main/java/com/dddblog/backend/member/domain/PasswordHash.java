@@ -35,6 +35,6 @@ public final class PasswordHash {
 
 	@Override
 	public String toString() {
-		return value;
+		return "[PROTECTED]";
 	}
 }
