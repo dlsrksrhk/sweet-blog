@@ -30,6 +30,9 @@ class JpaPostRepositoryAdapterTest {
 	private SpringDataJpaPostRepository springDataPostRepository;
 
 	@Autowired
+	private SpringDataJpaTagRepository springDataTagRepository;
+
+	@Autowired
 	private TestEntityManager entityManager;
 
 	@Test
@@ -57,6 +60,27 @@ class JpaPostRepositoryAdapterTest {
 		assertThat(savedPost.summary()).isEqualTo("DDD 소개");
 		assertThat(savedPost.status()).isEqualTo(PostStatus.DRAFT);
 		assertThat(savedPost.tags()).extracting(JpaTagEntity::name).containsExactlyInAnyOrder("ddd", "tdd");
+	}
+
+	@Test
+	void 이미_존재하는_태그는_새로_만들지_않고_재사용한다() {
+		springDataTagRepository.save(new JpaTagEntity("ddd"));
+		Post firstPost = createPost();
+		Post secondPost = new Post(
+			new AuthorId(2L),
+			new PostTitle("JPA 시작하기"),
+			new PostContent("JPA 본문"),
+			new PostSummary("JPA 소개"),
+			List.of(new TagName("DDD")),
+			PostStatus.PUBLISHED
+		);
+
+		postRepository.save(firstPost);
+		postRepository.save(secondPost);
+
+		assertThat(springDataTagRepository.findAll())
+			.extracting(JpaTagEntity::name)
+			.containsExactlyInAnyOrder("ddd", "tdd");
 	}
 
 	private Post createPost() {
