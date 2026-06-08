@@ -8,10 +8,10 @@
 - Spring Boot: `3.5.0`
 - Current branch: `master`
 - Working tree before handoff update: clean
-- Latest implementation commit: `234fb74 fix: redact password hash string representation`
-- Latest docs commits:
-  - `04cf81a docs: add member domain plan`
-  - `49f2710 docs: add member domain design`
+- Latest implementation commit: `b39dfee fix: avoid ascii void helper names`
+- Latest docs commits before this handoff update:
+  - `77a0e56 docs: add register member application plan`
+  - `3ed9631 docs: add register member application design`
 
 ## Project Rules
 
@@ -47,6 +47,8 @@ Important local rules:
 - `docs/superpowers/plans/2026-06-07-jpa-post-repository.md`
 - `docs/superpowers/specs/2026-06-07-member-domain-design.md`
 - `docs/superpowers/plans/2026-06-07-member-domain.md`
+- `docs/superpowers/specs/2026-06-08-register-member-application-design.md`
+- `docs/superpowers/plans/2026-06-08-register-member-application.md`
 
 ### Blog Domain Layer
 
@@ -122,16 +124,79 @@ Important member domain behavior:
 
 Important exclusions still true:
 
-- No member application service yet.
-- No `MemberRepository` port yet.
 - No member JPA entity/repository yet.
 - No signup API yet.
 - No BCrypt/password encoder integration yet.
 - No login/JWT integration yet.
-- No login ID or nickname duplicate check yet.
+- No persistence-backed login ID or nickname duplicate check yet.
 - No relation/FK between `posts.author_id` and a member table yet.
 
 Member domain package is pure Java:
+
+- No Spring annotations.
+- No JPA annotations.
+
+### Member Application Layer
+
+Package:
+
+```text
+backend/src/main/java/com/dddblog/backend/member/application
+```
+
+Implemented:
+
+- `RegisterMemberCommand`
+- `RegisterMemberService`
+- `MemberRepository`
+
+Behavior:
+
+- `RegisterMemberCommand` fields are:
+  - `String name`
+  - `String nickname`
+  - `String loginId`
+  - `String passwordHash`
+- `RegisterMemberCommand` does not receive `memberId`.
+- `RegisterMemberService.register(command)` rejects null command with `Register member command must not be null.`
+- `RegisterMemberService.register(command)` converts command primitives to:
+  - `MemberName`
+  - `Nickname`
+  - `LoginId`
+  - `PasswordHash`
+- Value-object exceptions are not caught or translated.
+- Duplicate login ID is checked through `MemberRepository.existsByLoginId(loginId)`.
+- Duplicate nickname is checked through `MemberRepository.existsByNickname(nickname)`.
+- Duplicate login ID is rejected with `Login id already exists.`
+- Duplicate nickname is rejected with `Nickname already exists.`
+- `MemberRepository.nextId()` is called only after command validation and duplicate checks pass.
+- `Member.register(memberId, name, nickname, loginId, passwordHash)` creates the new member.
+- `MemberRepository.save(member)` is called and its returned `MemberId` is returned from the service.
+
+`MemberRepository` methods:
+
+```java
+boolean existsByLoginId(LoginId loginId);
+boolean existsByNickname(Nickname nickname);
+MemberId nextId();
+MemberId save(Member member);
+```
+
+Important wiring note:
+
+- `RegisterMemberService` is still a pure Java class.
+- It is not annotated with `@Service`.
+- There is not yet a Spring configuration that exposes `RegisterMemberService` as a bean.
+- A future API/config slice must decide how to wire it.
+
+Important design note:
+
+- Current member registration requires `MemberId` before calling `Member.register(...)`.
+- For the application slice, ID generation was placed behind `MemberRepository.nextId()`.
+- This is intentionally conservative for the pure Java service, but it creates a design decision for the next persistence slice because MySQL/JPA auto-increment normally generates IDs during `save`, not before `save`.
+- The next design session should explicitly decide whether to keep preallocated IDs, introduce a separate ID generator, or refactor member registration to allow persistence-generated IDs.
+
+Member application package is pure Java:
 
 - No Spring annotations.
 - No JPA annotations.
@@ -245,6 +310,12 @@ Member domain tests:
 backend/src/test/java/com/dddblog/backend/member/domain
 ```
 
+Member application tests:
+
+```text
+backend/src/test/java/com/dddblog/backend/member/application
+```
+
 Blog application tests:
 
 ```text
@@ -260,6 +331,28 @@ backend/src/test/java/com/dddblog/backend/blog/persistence
 Implemented application test fake:
 
 - `FakePostRepository`
+- `FakeMemberRepository`
+
+Member application test:
+
+- `RegisterMemberServiceTest`
+
+Member application test scenarios:
+
+- `유효한_요청이면_회원을_저장하고_ID를_반환한다`
+- `저장된_회원은_요청_값을_도메인_값으로_가진다`
+- `신규_회원은_MEMBER_권한과_ACTIVE_상태를_가진다`
+- `command가_null이면_저장하지_않는다`
+- `로그인_ID가_이미_존재하면_저장하지_않는다`
+- `닉네임이_이미_존재하면_저장하지_않는다`
+- `잘못된_로그인_ID이면_저장하지_않는다`
+- `잘못된_닉네임이면_저장하지_않는다`
+- `잘못된_비밀번호_해시이면_저장하지_않는다`
+
+Important member application test detail:
+
+- `FakeMemberRepository` helper methods intentionally return `FakeMemberRepository` instead of `void`.
+- This avoids matching the project-wide ASCII `void ...` test naming scan, which scans all backend test Java files, not only `*Test.java`.
 
 Implemented persistence test:
 
@@ -310,6 +403,7 @@ Check no Spring/JPA annotations in pure domain/application packages:
 ```powershell
 cd C:\dev\study\ddd-blog\backend
 Get-ChildItem -Path .\src\main\java\com\dddblog\backend\blog\domain,.\src\main\java\com\dddblog\backend\blog\application,.\src\main\java\com\dddblog\backend\member\domain -Recurse -Filter *.java | Select-String -Pattern '@Component|@Service|@Repository|@Entity|@Embeddable|@Table|@Transactional'
+Get-ChildItem -Path .\src\main\java\com\dddblog\backend\member\application -Recurse -Filter *.java | Select-String -Pattern '@Component|@Service|@Repository|@Entity|@Embeddable|@Table|@Transactional'
 ```
 
 Expected: no output.
@@ -319,18 +413,18 @@ Expected: no output.
 Most relevant recent commits:
 
 ```text
+b39dfee fix: avoid ascii void helper names
+dcb9d5c feat: reject duplicate member registration values
+30fc52a test: reject invalid member registration command
+1bfccb4 test: verify registered member values
+c1185ba feat: add member registration service
+77a0e56 docs: add register member application plan
+3ed9631 docs: add register member application design
 234fb74 fix: redact password hash string representation
 0339e15 feat: add member aggregate
 dd6d178 feat: add member password hash and enums
 d5cd5bc feat: add member profile value objects
 480e7aa feat: add member id value object
-04cf81a docs: add member domain plan
-49f2710 docs: add member domain design
-9e31656 docs: update handoff for create post api
-ad3f45c fix: make post persistence transactional
-1f5973a test: reject null post persistence
-898c45a test: verify post tag reuse
-d9ebf2c test: reload persisted post values
 ```
 
 ## Recommended Next Step
@@ -338,86 +432,62 @@ d9ebf2c test: reload persisted post values
 Recommended next brainstorming topic:
 
 ```text
-회원가입 애플리케이션 서비스 1차
+회원 저장소 영속성 1차와 회원 ID 생성 방식
 ```
 
 Why this is recommended:
 
-- The user explicitly chose to develop `Member` before the first post creation API.
-- Pure `Member` domain is now implemented.
-- The next natural DDD/TDD slice is to wrap member creation in an application use case before adding JPA/API/auth.
+- Pure `Member` domain is implemented.
+- Pure `RegisterMemberService` application use case is implemented.
+- The next natural DDD/TDD slice is to connect `MemberRepository` to persistence before adding signup API/auth.
+- The current `MemberRepository.nextId()` choice must be reconciled with JPA/MySQL ID generation before implementing a real adapter.
 
 Recommended scope:
 
-- Add a `member.application` package.
-- Add a `RegisterMemberCommand`.
-- Add a `RegisterMemberService`.
-- Add a `MemberRepository` application port.
-- Add a test fake repository under `src/test`.
-- Keep `RegisterMemberService` pure Java, with no Spring annotation.
-- Keep BCrypt/password hashing out of this slice unless explicitly approved.
-- For this slice, accept an already-hashed password through the command as `passwordHash`.
-- Check duplicate login ID and duplicate nickname through repository-port methods.
-- Return `MemberId` after successful registration.
-- Avoid JPA persistence, API, login, JWT, password encoder, and security configuration in this slice.
-- Keep tests Korean scenario-style and Spring Context-free.
-
-Suggested conservative path:
-
-- `RegisterMemberCommand` fields:
-  - `Long memberId`
-  - `String name`
-  - `String nickname`
-  - `String loginId`
-  - `String passwordHash`
-- `MemberRepository` methods:
-  - `boolean existsByLoginId(LoginId loginId)`
-  - `boolean existsByNickname(Nickname nickname)`
-  - `MemberId save(Member member)`
-- `RegisterMemberService.register(command)` flow:
-  1. Reject null command.
-  2. Convert primitives to value objects.
-  3. Check duplicate login ID.
-  4. Check duplicate nickname.
-  5. Create `Member.register(...)`.
-  6. Save through repository.
-  7. Return saved `MemberId`.
-- Test with `FakeMemberRepository`.
+- Decide the ID generation approach first.
+- If keeping current `MemberRepository.nextId()`:
+  - Design how a JPA adapter can allocate a valid positive `MemberId` before saving.
+  - Consider whether a custom ID table/sequence-like strategy is acceptable for this learning project.
+- If preferring JPA/MySQL generated IDs:
+  - Consider refactoring `Member` or the registration flow so a new member can be persisted before receiving a final ID.
+  - This may require changing `MemberRepository` and `RegisterMemberService`.
+- After the ID approach is approved, design the member persistence adapter:
+  - `member.persistence` package
+  - JPA entity for `members`
+  - Spring Data repository
+  - Adapter implementing `MemberRepository`
+  - Duplicate lookup by login ID and nickname
+  - Save behavior returning `MemberId`
+- Keep signup API, BCrypt, login, JWT, and Post FK out of this slice unless explicitly approved.
+- Use H2-backed `@DataJpaTest` style similar to `JpaPostRepositoryAdapterTest` if persistence is implemented.
 
 Likely questions to ask during brainstorming:
 
-1. Should `RegisterMemberCommand` receive `memberId` for now, or should repository/fake generate it?
-2. Should this slice accept `passwordHash` directly, or introduce a password-hashing port now?
-3. Should duplicate login ID/nickname exceptions use plain `IllegalArgumentException` first, or introduce named domain/application exceptions?
-4. Should `MemberRepository.save(Member)` return `MemberId`, matching current `PostRepository.save(Post)` style?
-5. Should exact boundary-allowed tests be added for `MemberName`, `Nickname`, and `LoginId` now, or leave them as a later test-hardening task?
-
-Recommended answer defaults if the user wants the conservative path:
-
-- Let repository/fake generate `MemberId` if registration should resemble persistence-generated IDs.
-- If minimizing changes, include `memberId` in command for now; but this is less realistic.
-- Keep password hashing out for one more slice and accept `passwordHash`.
-- Use `IllegalArgumentException` for duplicate checks initially.
-- Use `MemberRepository.save(Member)` returning `MemberId`, consistent with `PostRepository.save(Post)`.
-- Add boundary-allowed tests only if the user wants to harden existing value-object coverage before moving into application service.
+1. Should member IDs continue to be allocated before `Member.register(...)`, or should the member model/application flow be adjusted for persistence-generated IDs?
+2. If IDs stay preallocated, should `nextId()` remain on `MemberRepository`, or move to a separate `MemberIdGenerator` port?
+3. Should the first member persistence slice use H2 only, or introduce Testcontainers MySQL now?
+4. Should `members.login_id` and `members.nickname` have unique constraints in the JPA mapping immediately?
+5. Should `PasswordHash` be stored as-is in `members.password_hash`, with no BCrypt integration yet?
+6. Should `RegisterMemberService` continue returning `memberRepository.save(member)`, or return the preallocated `memberId` after a void save?
 
 Alternative next step:
 
 ```text
-글 작성 API 1차
+회원가입 API 1차
 ```
 
-This was the previous recommendation, but after choosing and completing `Member` domain first, member registration application service is now the cleaner next slice.
+This is possible, but persistence and password hashing/wiring decisions would need to be addressed. A member persistence slice first is the cleaner next step.
 
 ## Notes For Next Agent
 
 - The user wants to continue in a new chat.
 - Start by reading this handoff.
-- Then run `superpowers:brainstorming` for `회원가입 애플리케이션 서비스 1차`.
+- Then run `superpowers:brainstorming` for `회원 저장소 영속성 1차와 회원 ID 생성 방식`.
 - Do not implement immediately.
 - Ask one clarifying question at a time.
 - The user prefers Korean documentation and Korean test method names.
 - Preserve pure domain/application style unless a new approved spec changes it.
 - Do not add unrelated refactors or cleanup.
 - Use an isolated worktree before implementation.
-- Current `master` includes the completed member domain slice.
+- Current `master` includes the completed member domain slice and the completed member registration application slice.
+- Be careful with helper method names under `backend/src/test/java`: the naming-rule command flags ASCII `void` methods in all test source files, including fakes.
