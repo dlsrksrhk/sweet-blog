@@ -44,11 +44,13 @@ class FakeMemberRepository implements MemberRepository {
 		return List.copyOf(savedMembers);
 	}
 
-	void addExistingLoginId(LoginId loginId) {
+	FakeMemberRepository addExistingLoginId(LoginId loginId) {
 		existingLoginIds.add(loginId);
+		return this;
 	}
 
-	void addExistingNickname(Nickname nickname) {
+	FakeMemberRepository addExistingNickname(Nickname nickname) {
 		existingNicknames.add(nickname);
+		return this;
 	}
 }
