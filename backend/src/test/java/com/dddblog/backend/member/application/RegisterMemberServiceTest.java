@@ -69,6 +69,32 @@ class RegisterMemberServiceTest {
 	}
 
 	@Test
+	void 로그인_ID가_이미_존재하면_저장하지_않는다() {
+		FakeMemberRepository memberRepository = new FakeMemberRepository();
+		memberRepository.addExistingLoginId(new LoginId("user01"));
+		RegisterMemberService service = new RegisterMemberService(memberRepository);
+		RegisterMemberCommand command = validCommand();
+
+		assertThatThrownBy(() -> service.register(command))
+			.isInstanceOf(IllegalArgumentException.class)
+			.hasMessage("Login id already exists.");
+		assertThat(memberRepository.savedMembers()).isEmpty();
+	}
+
+	@Test
+	void 닉네임이_이미_존재하면_저장하지_않는다() {
+		FakeMemberRepository memberRepository = new FakeMemberRepository();
+		memberRepository.addExistingNickname(new Nickname("길동"));
+		RegisterMemberService service = new RegisterMemberService(memberRepository);
+		RegisterMemberCommand command = validCommand();
+
+		assertThatThrownBy(() -> service.register(command))
+			.isInstanceOf(IllegalArgumentException.class)
+			.hasMessage("Nickname already exists.");
+		assertThat(memberRepository.savedMembers()).isEmpty();
+	}
+
+	@Test
 	void 잘못된_로그인_ID이면_저장하지_않는다() {
 		FakeMemberRepository memberRepository = new FakeMemberRepository();
 		RegisterMemberService service = new RegisterMemberService(memberRepository);

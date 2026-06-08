@@ -20,13 +20,24 @@ public class RegisterMemberService {
 			throw new IllegalArgumentException("Register member command must not be null.");
 		}
 
+		MemberName name = new MemberName(command.name());
+		Nickname nickname = new Nickname(command.nickname());
+		LoginId loginId = new LoginId(command.loginId());
+		PasswordHash passwordHash = new PasswordHash(command.passwordHash());
+		if (memberRepository.existsByLoginId(loginId)) {
+			throw new IllegalArgumentException("Login id already exists.");
+		}
+		if (memberRepository.existsByNickname(nickname)) {
+			throw new IllegalArgumentException("Nickname already exists.");
+		}
+
 		MemberId memberId = memberRepository.nextId();
 		Member member = Member.register(
 			memberId,
-			new MemberName(command.name()),
-			new Nickname(command.nickname()),
-			new LoginId(command.loginId()),
-			new PasswordHash(command.passwordHash())
+			name,
+			nickname,
+			loginId,
+			passwordHash
 		);
 		return memberRepository.save(member);
 	}
