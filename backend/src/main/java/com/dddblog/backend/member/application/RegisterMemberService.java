@@ -16,6 +16,10 @@ public class RegisterMemberService {
 	}
 
 	public MemberId register(RegisterMemberCommand command) {
+		if (command == null) {
+			throw new IllegalArgumentException("Register member command must not be null.");
+		}
+
 		MemberId memberId = memberRepository.nextId();
 		Member member = Member.register(
 			memberId,

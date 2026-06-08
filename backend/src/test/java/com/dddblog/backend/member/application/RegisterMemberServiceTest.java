@@ -1,6 +1,7 @@
 package com.dddblog.backend.member.application;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
 import org.junit.jupiter.api.Test;
 
@@ -54,6 +55,68 @@ class RegisterMemberServiceTest {
 		Member savedMember = memberRepository.savedMembers().get(0);
 		assertThat(savedMember.role()).isEqualTo(MemberRole.MEMBER);
 		assertThat(savedMember.status()).isEqualTo(MemberStatus.ACTIVE);
+	}
+
+	@Test
+	void command가_null이면_저장하지_않는다() {
+		FakeMemberRepository memberRepository = new FakeMemberRepository();
+		RegisterMemberService service = new RegisterMemberService(memberRepository);
+
+		assertThatThrownBy(() -> service.register(null))
+			.isInstanceOf(IllegalArgumentException.class)
+			.hasMessage("Register member command must not be null.");
+		assertThat(memberRepository.savedMembers()).isEmpty();
+	}
+
+	@Test
+	void 잘못된_로그인_ID이면_저장하지_않는다() {
+		FakeMemberRepository memberRepository = new FakeMemberRepository();
+		RegisterMemberService service = new RegisterMemberService(memberRepository);
+		RegisterMemberCommand command = new RegisterMemberCommand(
+			"홍길동",
+			"길동",
+			"abc",
+			"$2a$10$hashed-password"
+		);
+
+		assertThatThrownBy(() -> service.register(command))
+			.isInstanceOf(IllegalArgumentException.class)
+			.hasMessage("Login id must be 4 characters or more.");
+		assertThat(memberRepository.savedMembers()).isEmpty();
+	}
+
+	@Test
+	void 잘못된_닉네임이면_저장하지_않는다() {
+		FakeMemberRepository memberRepository = new FakeMemberRepository();
+		RegisterMemberService service = new RegisterMemberService(memberRepository);
+		RegisterMemberCommand command = new RegisterMemberCommand(
+			"홍길동",
+			"길",
+			"user01",
+			"$2a$10$hashed-password"
+		);
+
+		assertThatThrownBy(() -> service.register(command))
+			.isInstanceOf(IllegalArgumentException.class)
+			.hasMessage("Nickname must be 2 characters or more.");
+		assertThat(memberRepository.savedMembers()).isEmpty();
+	}
+
+	@Test
+	void 잘못된_비밀번호_해시이면_저장하지_않는다() {
+		FakeMemberRepository memberRepository = new FakeMemberRepository();
+		RegisterMemberService service = new RegisterMemberService(memberRepository);
+		RegisterMemberCommand command = new RegisterMemberCommand(
+			"홍길동",
+			"길동",
+			"user01",
+			" "
+		);
+
+		assertThatThrownBy(() -> service.register(command))
+			.isInstanceOf(IllegalArgumentException.class)
+			.hasMessage("Password hash must not be blank.");
+		assertThat(memberRepository.savedMembers()).isEmpty();
 	}
 
 	private RegisterMemberCommand validCommand() {
