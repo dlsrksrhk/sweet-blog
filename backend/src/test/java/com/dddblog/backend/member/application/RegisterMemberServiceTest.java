@@ -4,7 +4,14 @@ import static org.assertj.core.api.Assertions.assertThat;
 
 import org.junit.jupiter.api.Test;
 
+import com.dddblog.backend.member.domain.LoginId;
+import com.dddblog.backend.member.domain.Member;
 import com.dddblog.backend.member.domain.MemberId;
+import com.dddblog.backend.member.domain.MemberName;
+import com.dddblog.backend.member.domain.MemberRole;
+import com.dddblog.backend.member.domain.MemberStatus;
+import com.dddblog.backend.member.domain.Nickname;
+import com.dddblog.backend.member.domain.PasswordHash;
 
 class RegisterMemberServiceTest {
 
@@ -18,6 +25,35 @@ class RegisterMemberServiceTest {
 
 		assertThat(memberId).isEqualTo(new MemberId(1L));
 		assertThat(memberRepository.savedMembers()).hasSize(1);
+	}
+
+	@Test
+	void 저장된_회원은_요청_값을_도메인_값으로_가진다() {
+		FakeMemberRepository memberRepository = new FakeMemberRepository();
+		RegisterMemberService service = new RegisterMemberService(memberRepository);
+		RegisterMemberCommand command = validCommand();
+
+		service.register(command);
+
+		Member savedMember = memberRepository.savedMembers().get(0);
+		assertThat(savedMember.id()).isEqualTo(new MemberId(1L));
+		assertThat(savedMember.name()).isEqualTo(new MemberName("홍길동"));
+		assertThat(savedMember.nickname()).isEqualTo(new Nickname("길동"));
+		assertThat(savedMember.loginId()).isEqualTo(new LoginId("user01"));
+		assertThat(savedMember.passwordHash()).isEqualTo(new PasswordHash("$2a$10$hashed-password"));
+	}
+
+	@Test
+	void 신규_회원은_MEMBER_권한과_ACTIVE_상태를_가진다() {
+		FakeMemberRepository memberRepository = new FakeMemberRepository();
+		RegisterMemberService service = new RegisterMemberService(memberRepository);
+		RegisterMemberCommand command = validCommand();
+
+		service.register(command);
+
+		Member savedMember = memberRepository.savedMembers().get(0);
+		assertThat(savedMember.role()).isEqualTo(MemberRole.MEMBER);
+		assertThat(savedMember.status()).isEqualTo(MemberStatus.ACTIVE);
 	}
 
 	private RegisterMemberCommand validCommand() {
