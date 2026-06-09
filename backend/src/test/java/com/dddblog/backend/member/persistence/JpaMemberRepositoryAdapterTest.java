@@ -38,23 +38,24 @@ class JpaMemberRepositoryAdapterTest extends MysqlDataJpaTestSupport {
 
 	@Test
 	void 회원을_저장하면_ID를_반환한다() {
-		Member member = createMember(1L, "user1", "닉네임1");
+		Member member = createMember(10L, "user1", "닉네임1");
 
 		MemberId memberId = memberRepository.save(member);
 
-		assertThat(memberId.value()).isPositive();
+		assertThat(memberId).isEqualTo(new MemberId(10L));
 	}
 
 	@Test
 	void 회원을_저장하면_members에_도메인_값이_저장된다() {
-		Member member = createMember(1L, "user1", "닉네임1");
+		Member member = createMember(20L, "user1", "닉네임1");
 
-		MemberId memberId = memberRepository.save(member);
+		memberRepository.save(member);
 
 		entityManager.flush();
 		entityManager.clear();
 
-		JpaMemberEntity savedMember = springDataMemberRepository.findById(memberId.value()).orElseThrow();
+		JpaMemberEntity savedMember = springDataMemberRepository.findById(20L).orElseThrow();
+		assertThat(savedMember.id()).isEqualTo(20L);
 		assertThat(savedMember.name()).isEqualTo("홍길동");
 		assertThat(savedMember.nickname()).isEqualTo("닉네임1");
 		assertThat(savedMember.loginId()).isEqualTo("user1");

@@ -35,6 +35,7 @@ public class JpaMemberRepositoryAdapter implements MemberRepository {
 			throw new IllegalArgumentException("Member must not be null.");
 		}
 		JpaMemberEntity entity = new JpaMemberEntity(
+			member.id().value(),
 			member.name().value(),
 			member.nickname().value(),
 			member.loginId().value(),
