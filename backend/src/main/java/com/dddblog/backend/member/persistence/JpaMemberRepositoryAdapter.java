@@ -9,13 +9,17 @@ import com.dddblog.backend.member.domain.Member;
 import com.dddblog.backend.member.domain.MemberId;
 import com.dddblog.backend.member.domain.Nickname;
 
+import jakarta.persistence.EntityManager;
+
 @Repository
 public class JpaMemberRepositoryAdapter implements MemberRepository {
 
 	private final SpringDataJpaMemberRepository memberRepository;
+	private final EntityManager entityManager;
 
-	public JpaMemberRepositoryAdapter(SpringDataJpaMemberRepository memberRepository) {
+	public JpaMemberRepositoryAdapter(SpringDataJpaMemberRepository memberRepository, EntityManager entityManager) {
 		this.memberRepository = memberRepository;
+		this.entityManager = entityManager;
 	}
 
 	@Override
@@ -43,7 +47,7 @@ public class JpaMemberRepositoryAdapter implements MemberRepository {
 			member.role(),
 			member.status()
 		);
-		JpaMemberEntity savedEntity = memberRepository.save(entity);
-		return new MemberId(savedEntity.id());
+		entityManager.persist(entity);
+		return new MemberId(entity.id());
 	}
 }

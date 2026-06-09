@@ -113,6 +113,19 @@ class JpaMemberRepositoryAdapterTest extends MysqlDataJpaTestSupport {
 	}
 
 	@Test
+	void 같은_ID의_회원은_중복_저장할_수_없다() {
+		memberRepository.save(createMember(30L, "user1", "닉네임1"));
+		entityManager.flush();
+		entityManager.clear();
+
+		assertThatThrownBy(() -> {
+			memberRepository.save(createMember(30L, "user2", "닉네임2"));
+			entityManager.flush();
+		})
+			.hasRootCauseInstanceOf(SQLIntegrityConstraintViolationException.class);
+	}
+
+	@Test
 	void 회원이_null이면_저장할_수_없다() {
 		assertThatThrownBy(() -> memberRepository.save(null))
 			.isInstanceOf(IllegalArgumentException.class)
