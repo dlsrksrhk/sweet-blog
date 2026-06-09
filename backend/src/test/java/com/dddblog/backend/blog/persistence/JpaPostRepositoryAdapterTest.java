@@ -7,6 +7,7 @@ import java.util.List;
 
 import org.junit.jupiter.api.Test;
 import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.jdbc.AutoConfigureTestDatabase;
 import org.springframework.boot.test.autoconfigure.orm.jpa.DataJpaTest;
 import org.springframework.boot.test.autoconfigure.orm.jpa.TestEntityManager;
 import org.springframework.context.annotation.Import;
@@ -19,10 +20,12 @@ import com.dddblog.backend.blog.domain.PostStatus;
 import com.dddblog.backend.blog.domain.PostSummary;
 import com.dddblog.backend.blog.domain.PostTitle;
 import com.dddblog.backend.blog.domain.TagName;
+import com.dddblog.backend.support.MysqlDataJpaTestSupport;
 
 @DataJpaTest
+@AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import(JpaPostRepositoryAdapter.class)
-class JpaPostRepositoryAdapterTest {
+class JpaPostRepositoryAdapterTest extends MysqlDataJpaTestSupport {
 
 	@Autowired
 	private JpaPostRepositoryAdapter postRepository;
