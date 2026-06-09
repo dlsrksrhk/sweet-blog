@@ -10,9 +10,11 @@ import com.dddblog.backend.member.domain.PasswordHash;
 public class RegisterMemberService {
 
 	private final MemberRepository memberRepository;
+	private final MemberIdGenerator memberIdGenerator;
 
-	public RegisterMemberService(MemberRepository memberRepository) {
+	public RegisterMemberService(MemberRepository memberRepository, MemberIdGenerator memberIdGenerator) {
 		this.memberRepository = memberRepository;
+		this.memberIdGenerator = memberIdGenerator;
 	}
 
 	public MemberId register(RegisterMemberCommand command) {
@@ -31,7 +33,7 @@ public class RegisterMemberService {
 			throw new IllegalArgumentException("Nickname already exists.");
 		}
 
-		MemberId memberId = memberRepository.nextId();
+		MemberId memberId = memberIdGenerator.nextId();
 		Member member = Member.register(
 			memberId,
 			name,

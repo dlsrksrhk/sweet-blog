@@ -15,7 +15,6 @@ class FakeMemberRepository implements MemberRepository {
 	private final List<Member> savedMembers = new ArrayList<>();
 	private final Set<LoginId> existingLoginIds = new HashSet<>();
 	private final Set<Nickname> existingNicknames = new HashSet<>();
-	private long nextId = 1L;
 
 	@Override
 	public boolean existsByLoginId(LoginId loginId) {
@@ -25,11 +24,6 @@ class FakeMemberRepository implements MemberRepository {
 	@Override
 	public boolean existsByNickname(Nickname nickname) {
 		return existingNicknames.contains(nickname);
-	}
-
-	@Override
-	public MemberId nextId() {
-		return new MemberId(nextId++);
 	}
 
 	@Override

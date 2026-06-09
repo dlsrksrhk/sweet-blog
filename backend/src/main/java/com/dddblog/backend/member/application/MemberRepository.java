@@ -11,7 +11,5 @@ public interface MemberRepository {
 
 	boolean existsByNickname(Nickname nickname);
 
-	MemberId nextId();
-
 	MemberId save(Member member);
 }

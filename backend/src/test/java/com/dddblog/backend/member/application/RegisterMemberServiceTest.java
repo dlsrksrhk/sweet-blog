@@ -19,7 +19,8 @@ class RegisterMemberServiceTest {
 	@Test
 	void 유효한_요청이면_회원을_저장하고_ID를_반환한다() {
 		FakeMemberRepository memberRepository = new FakeMemberRepository();
-		RegisterMemberService service = new RegisterMemberService(memberRepository);
+		FakeMemberIdGenerator memberIdGenerator = new FakeMemberIdGenerator();
+		RegisterMemberService service = new RegisterMemberService(memberRepository, memberIdGenerator);
 		RegisterMemberCommand command = validCommand();
 
 		MemberId memberId = service.register(command);
@@ -31,7 +32,8 @@ class RegisterMemberServiceTest {
 	@Test
 	void 저장된_회원은_요청_값을_도메인_값으로_가진다() {
 		FakeMemberRepository memberRepository = new FakeMemberRepository();
-		RegisterMemberService service = new RegisterMemberService(memberRepository);
+		FakeMemberIdGenerator memberIdGenerator = new FakeMemberIdGenerator();
+		RegisterMemberService service = new RegisterMemberService(memberRepository, memberIdGenerator);
 		RegisterMemberCommand command = validCommand();
 
 		service.register(command);
@@ -47,7 +49,8 @@ class RegisterMemberServiceTest {
 	@Test
 	void 신규_회원은_MEMBER_권한과_ACTIVE_상태를_가진다() {
 		FakeMemberRepository memberRepository = new FakeMemberRepository();
-		RegisterMemberService service = new RegisterMemberService(memberRepository);
+		FakeMemberIdGenerator memberIdGenerator = new FakeMemberIdGenerator();
+		RegisterMemberService service = new RegisterMemberService(memberRepository, memberIdGenerator);
 		RegisterMemberCommand command = validCommand();
 
 		service.register(command);
@@ -60,7 +63,8 @@ class RegisterMemberServiceTest {
 	@Test
 	void command가_null이면_저장하지_않는다() {
 		FakeMemberRepository memberRepository = new FakeMemberRepository();
-		RegisterMemberService service = new RegisterMemberService(memberRepository);
+		FakeMemberIdGenerator memberIdGenerator = new FakeMemberIdGenerator();
+		RegisterMemberService service = new RegisterMemberService(memberRepository, memberIdGenerator);
 
 		assertThatThrownBy(() -> service.register(null))
 			.isInstanceOf(IllegalArgumentException.class)
@@ -72,7 +76,8 @@ class RegisterMemberServiceTest {
 	void 로그인_ID가_이미_존재하면_저장하지_않는다() {
 		FakeMemberRepository memberRepository = new FakeMemberRepository();
 		memberRepository.addExistingLoginId(new LoginId("user01"));
-		RegisterMemberService service = new RegisterMemberService(memberRepository);
+		FakeMemberIdGenerator memberIdGenerator = new FakeMemberIdGenerator();
+		RegisterMemberService service = new RegisterMemberService(memberRepository, memberIdGenerator);
 		RegisterMemberCommand command = validCommand();
 
 		assertThatThrownBy(() -> service.register(command))
@@ -85,7 +90,8 @@ class RegisterMemberServiceTest {
 	void 닉네임이_이미_존재하면_저장하지_않는다() {
 		FakeMemberRepository memberRepository = new FakeMemberRepository();
 		memberRepository.addExistingNickname(new Nickname("길동"));
-		RegisterMemberService service = new RegisterMemberService(memberRepository);
+		FakeMemberIdGenerator memberIdGenerator = new FakeMemberIdGenerator();
+		RegisterMemberService service = new RegisterMemberService(memberRepository, memberIdGenerator);
 		RegisterMemberCommand command = validCommand();
 
 		assertThatThrownBy(() -> service.register(command))
@@ -97,7 +103,8 @@ class RegisterMemberServiceTest {
 	@Test
 	void 잘못된_로그인_ID이면_저장하지_않는다() {
 		FakeMemberRepository memberRepository = new FakeMemberRepository();
-		RegisterMemberService service = new RegisterMemberService(memberRepository);
+		FakeMemberIdGenerator memberIdGenerator = new FakeMemberIdGenerator();
+		RegisterMemberService service = new RegisterMemberService(memberRepository, memberIdGenerator);
 		RegisterMemberCommand command = new RegisterMemberCommand(
 			"홍길동",
 			"길동",
@@ -114,7 +121,8 @@ class RegisterMemberServiceTest {
 	@Test
 	void 잘못된_닉네임이면_저장하지_않는다() {
 		FakeMemberRepository memberRepository = new FakeMemberRepository();
-		RegisterMemberService service = new RegisterMemberService(memberRepository);
+		FakeMemberIdGenerator memberIdGenerator = new FakeMemberIdGenerator();
+		RegisterMemberService service = new RegisterMemberService(memberRepository, memberIdGenerator);
 		RegisterMemberCommand command = new RegisterMemberCommand(
 			"홍길동",
 			"길",
@@ -131,7 +139,8 @@ class RegisterMemberServiceTest {
 	@Test
 	void 잘못된_비밀번호_해시이면_저장하지_않는다() {
 		FakeMemberRepository memberRepository = new FakeMemberRepository();
-		RegisterMemberService service = new RegisterMemberService(memberRepository);
+		FakeMemberIdGenerator memberIdGenerator = new FakeMemberIdGenerator();
+		RegisterMemberService service = new RegisterMemberService(memberRepository, memberIdGenerator);
 		RegisterMemberCommand command = new RegisterMemberCommand(
 			"홍길동",
 			"길동",
