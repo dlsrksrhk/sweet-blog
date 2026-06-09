@@ -2,16 +2,18 @@
 
 ## Current State
 
-- Workspace: `C:\dev\study\ddd-blog`
-- Backend: `C:\dev\study\ddd-blog\backend`
+- Main workspace: `C:\dev\study\ddd-blog`
+- Active implementation worktree: `C:\dev\study\ddd-blog\.worktrees\member-persistence-id-generation`
+- Backend: `C:\dev\study\ddd-blog\.worktrees\member-persistence-id-generation\backend`
 - Java for this project: `C:\java\jdk-21`
 - Spring Boot: `3.5.0`
-- Current branch: `master`
-- Working tree before handoff update: clean
-- Latest implementation commit: `b39dfee fix: avoid ascii void helper names`
-- Latest docs commits before this handoff update:
-  - `77a0e56 docs: add register member application plan`
-  - `3ed9631 docs: add register member application design`
+- Current implementation branch: `codex/member-persistence-id-generation`
+- Work stopped intentionally after implementation plan Task 3.
+- Working tree before this handoff update: clean
+- Latest implementation commit before this handoff update: `4680e16 fix: use insert semantics for member save`
+- Latest plan/design commits:
+  - `c4508df docs: add member persistence id generation plan`
+  - `32eda6f docs: add member persistence id generation design`
 
 ## Project Rules
 
@@ -25,10 +27,9 @@ Important local rules:
 - Domain/application classes in current learning slices should not use Spring or JPA annotations.
 - Spring/JPA annotations are allowed in adapter packages such as `blog.persistence` and will likely be allowed in API/config packages after explicit design approval.
 - Prefer TDD: write a small failing test first, then implement the minimum code to pass.
-- Before implementing the next slice, run `superpowers:brainstorming`.
-- After approved design, write a Korean spec under `docs/superpowers/specs`.
-- Then use `superpowers:writing-plans`.
-- For implementation plans, use an isolated worktree before coding.
+- For new feature slices, use `superpowers:brainstorming`, write a Korean spec, then use `superpowers:writing-plans`.
+- Current slice already has approved spec and plan. Continue with the existing implementation plan; do not restart brainstorming.
+- Current implementation is already in an isolated worktree.
 
 ## Implemented So Far
 
@@ -49,6 +50,8 @@ Important local rules:
 - `docs/superpowers/plans/2026-06-07-member-domain.md`
 - `docs/superpowers/specs/2026-06-08-register-member-application-design.md`
 - `docs/superpowers/plans/2026-06-08-register-member-application.md`
+- `docs/superpowers/specs/2026-06-09-member-persistence-id-generation-design.md`
+- `docs/superpowers/plans/2026-06-09-member-persistence-id-generation.md`
 
 ### Blog Domain Layer
 
@@ -149,6 +152,7 @@ Implemented:
 - `RegisterMemberCommand`
 - `RegisterMemberService`
 - `MemberRepository`
+- `MemberIdGenerator`
 
 Behavior:
 
@@ -169,7 +173,7 @@ Behavior:
 - Duplicate nickname is checked through `MemberRepository.existsByNickname(nickname)`.
 - Duplicate login ID is rejected with `Login id already exists.`
 - Duplicate nickname is rejected with `Nickname already exists.`
-- `MemberRepository.nextId()` is called only after command validation and duplicate checks pass.
+- `MemberIdGenerator.nextId()` is called only after command validation and duplicate checks pass.
 - `Member.register(memberId, name, nickname, loginId, passwordHash)` creates the new member.
 - `MemberRepository.save(member)` is called and its returned `MemberId` is returned from the service.
 
@@ -178,8 +182,13 @@ Behavior:
 ```java
 boolean existsByLoginId(LoginId loginId);
 boolean existsByNickname(Nickname nickname);
-MemberId nextId();
 MemberId save(Member member);
+```
+
+`MemberIdGenerator` methods:
+
+```java
+MemberId nextId();
 ```
 
 Important wiring note:
@@ -192,9 +201,9 @@ Important wiring note:
 Important design note:
 
 - Current member registration requires `MemberId` before calling `Member.register(...)`.
-- For the application slice, ID generation was placed behind `MemberRepository.nextId()`.
-- This is intentionally conservative for the pure Java service, but it creates a design decision for the next persistence slice because MySQL/JPA auto-increment normally generates IDs during `save`, not before `save`.
-- The next design session should explicitly decide whether to keep preallocated IDs, introduce a separate ID generator, or refactor member registration to allow persistence-generated IDs.
+- ID generation is now behind the separate `MemberIdGenerator` port.
+- The design decision is complete: member IDs stay preallocated before `Member.register(...)`.
+- The real DB-backed `MemberIdGenerator` is not implemented yet. It is the next task.
 
 Member application package is pure Java:
 
@@ -283,7 +292,56 @@ Important exclusions still true:
 - No auditing columns yet.
 - No soft delete/view count/published at/cover image persistence yet.
 - No Flyway/Liquibase yet.
-- H2 is used for current repository tests; Testcontainers MySQL is not added yet.
+- Repository tests now use MySQL Testcontainers instead of H2.
+
+### Member Persistence Layer
+
+Package:
+
+```text
+backend/src/main/java/com/dddblog/backend/member/persistence
+```
+
+Implemented:
+
+- `JpaMemberEntity`
+- `SpringDataJpaMemberRepository`
+- `JpaMemberRepositoryAdapter`
+
+Behavior:
+
+- `JpaMemberRepositoryAdapter` implements application port `MemberRepository`.
+- `JpaMemberRepositoryAdapter.save(member)` rejects null member with `Member must not be null.`
+- `save(member)` is annotated with `@Transactional`.
+- `save(member)` maps domain `Member` to `JpaMemberEntity`.
+- Member IDs are assigned by the domain/application flow before persistence.
+- `JpaMemberEntity.id` is not DB-generated; it stores `member.id().value()`.
+- `save(member)` uses `EntityManager.persist(entity)` rather than Spring Data `save(entity)` so duplicate assigned IDs fail instead of merging/updating.
+- `save(member)` returns `new MemberId(entity.id())`.
+- Duplicate login ID is checked through `SpringDataJpaMemberRepository.existsByLoginId(loginId)`.
+- Duplicate nickname is checked through `SpringDataJpaMemberRepository.existsByNickname(nickname)`.
+
+Table mapping:
+
+- `members`
+  - `id`
+  - `name`
+  - `nickname`
+  - `login_id`
+  - `password_hash`
+  - `role`
+  - `status`
+  - `nickname` has unique constraint.
+  - `login_id` has unique constraint.
+
+Important member persistence details:
+
+- `members.id` is intentionally assigned, not auto-increment.
+- DB-backed ID generation is not implemented yet.
+- `JpaMemberIdSequenceEntity`, `SpringDataJpaMemberIdSequenceRepository`, and `JpaMemberIdGenerator` are still pending for Task 4.
+- No member read/update/delete repository methods yet.
+- No Flyway/Liquibase migration yet.
+- No relation/FK between `posts.author_id` and `members.id` yet.
 
 ### Dependencies
 
@@ -294,7 +352,10 @@ Backend Gradle dependencies include:
 - `spring-boot-starter-validation`
 - `spring-boot-starter-web`
 - `mysql-connector-j`
-- `com.h2database:h2` as `testRuntimeOnly`
+- `org.testcontainers:junit-jupiter` as `testImplementation`
+- `org.testcontainers:mysql` as `testImplementation`
+
+H2 was removed from test runtime dependencies during the Testcontainers migration.
 
 ### Tests
 
@@ -328,10 +389,23 @@ Blog persistence tests:
 backend/src/test/java/com/dddblog/backend/blog/persistence
 ```
 
+Member persistence tests:
+
+```text
+backend/src/test/java/com/dddblog/backend/member/persistence
+```
+
+JPA test support:
+
+```text
+backend/src/test/java/com/dddblog/backend/support/MysqlDataJpaTestSupport.java
+```
+
 Implemented application test fake:
 
 - `FakePostRepository`
 - `FakeMemberRepository`
+- `FakeMemberIdGenerator`
 
 Member application test:
 
@@ -354,21 +428,36 @@ Important member application test detail:
 - `FakeMemberRepository` helper methods intentionally return `FakeMemberRepository` instead of `void`.
 - This avoids matching the project-wide ASCII `void ...` test naming scan, which scans all backend test Java files, not only `*Test.java`.
 
-Implemented persistence test:
+Implemented persistence tests:
 
 - `JpaPostRepositoryAdapterTest`
+- `JpaMemberRepositoryAdapterTest`
 
-Persistence test scenarios:
+Blog persistence test scenarios:
 
 - `글을_저장하면_ID를_반환한다`
 - `글을_저장하면_본문_값이_posts에_저장된다`
 - `이미_존재하는_태그는_새로_만들지_않고_재사용한다`
 - `글이_null이면_저장할_수_없다`
 
+Member persistence test scenarios:
+
+- `회원을_저장하면_ID를_반환한다`
+- `회원을_저장하면_members에_도메인_값이_저장된다`
+- `저장된_로그인_ID가_있으면_존재한다고_판단한다`
+- `저장된_닉네임이_있으면_존재한다고_판단한다`
+- `로그인_ID는_중복_저장할_수_없다`
+- `닉네임은_중복_저장할_수_없다`
+- `같은_ID의_회원은_중복_저장할_수_없다`
+- `회원이_null이면_저장할_수_없다`
+
 Important persistence test detail:
 
-- The persisted value test uses `TestEntityManager.flush()` and `clear()` before reloading the saved post.
+- JPA tests use MySQL Testcontainers through `MysqlDataJpaTestSupport`.
+- Docker must be running for persistence tests.
+- Persisted value tests use `TestEntityManager.flush()` and `clear()` before reloading saved rows.
 - This avoids only verifying the first-level persistence context.
+- Full test runs currently pass, but Hibernate may log non-blocking schema-drop noise during shutdown because multiple JPA slice contexts share the static MySQL test container with `ddl-auto=create-drop`.
 
 All backend test method names are Korean scenario-style.
 
@@ -377,7 +466,7 @@ All backend test method names are Korean scenario-style.
 Run from backend:
 
 ```powershell
-cd C:\dev\study\ddd-blog\backend
+cd C:\dev\study\ddd-blog\.worktrees\member-persistence-id-generation\backend
 $env:JAVA_HOME='C:\java\jdk-21'
 $env:Path="$env:JAVA_HOME\bin;$env:Path"
 .\gradlew.bat test
@@ -392,7 +481,7 @@ BUILD SUCCESSFUL
 Check test naming rule:
 
 ```powershell
-cd C:\dev\study\ddd-blog\backend
+cd C:\dev\study\ddd-blog\.worktrees\member-persistence-id-generation\backend
 Get-ChildItem -Path .\src\test\java\com\dddblog\backend -Recurse -Filter *.java | Select-String -Pattern 'void [a-zA-Z][a-zA-Z0-9_]*\('
 ```
 
@@ -401,7 +490,7 @@ Expected: no output.
 Check no Spring/JPA annotations in pure domain/application packages:
 
 ```powershell
-cd C:\dev\study\ddd-blog\backend
+cd C:\dev\study\ddd-blog\.worktrees\member-persistence-id-generation\backend
 Get-ChildItem -Path .\src\main\java\com\dddblog\backend\blog\domain,.\src\main\java\com\dddblog\backend\blog\application,.\src\main\java\com\dddblog\backend\member\domain -Recurse -Filter *.java | Select-String -Pattern '@Component|@Service|@Repository|@Entity|@Embeddable|@Table|@Transactional'
 Get-ChildItem -Path .\src\main\java\com\dddblog\backend\member\application -Recurse -Filter *.java | Select-String -Pattern '@Component|@Service|@Repository|@Entity|@Embeddable|@Table|@Transactional'
 ```
@@ -410,84 +499,70 @@ Expected: no output.
 
 ## Recent Commits
 
-Most relevant recent commits:
+Most relevant recent commits on `codex/member-persistence-id-generation`:
 
 ```text
-b39dfee fix: avoid ascii void helper names
-dcb9d5c feat: reject duplicate member registration values
-30fc52a test: reject invalid member registration command
-1bfccb4 test: verify registered member values
-c1185ba feat: add member registration service
-77a0e56 docs: add register member application plan
-3ed9631 docs: add register member application design
-234fb74 fix: redact password hash string representation
-0339e15 feat: add member aggregate
-dd6d178 feat: add member password hash and enums
-d5cd5bc feat: add member profile value objects
-480e7aa feat: add member id value object
+4680e16 fix: use insert semantics for member save
+81c6460 fix: persist generated member id
+5c1b360 feat: add jpa member repository adapter
+e384b83 test: run jpa tests with mysql testcontainers
+dc52a10 refactor: split member id generator port
+c4508df docs: add member persistence id generation plan
+32eda6f docs: add member persistence id generation design
+743338b docs: update handoff for member registration
 ```
 
 ## Recommended Next Step
 
-Recommended next brainstorming topic:
+Continue the existing implementation plan from Task 4:
 
 ```text
-회원 저장소 영속성 1차와 회원 ID 생성 방식
+docs/superpowers/plans/2026-06-09-member-persistence-id-generation.md
 ```
 
-Why this is recommended:
-
-- Pure `Member` domain is implemented.
-- Pure `RegisterMemberService` application use case is implemented.
-- The next natural DDD/TDD slice is to connect `MemberRepository` to persistence before adding signup API/auth.
-- The current `MemberRepository.nextId()` choice must be reconciled with JPA/MySQL ID generation before implementing a real adapter.
-
-Recommended scope:
-
-- Decide the ID generation approach first.
-- If keeping current `MemberRepository.nextId()`:
-  - Design how a JPA adapter can allocate a valid positive `MemberId` before saving.
-  - Consider whether a custom ID table/sequence-like strategy is acceptable for this learning project.
-- If preferring JPA/MySQL generated IDs:
-  - Consider refactoring `Member` or the registration flow so a new member can be persisted before receiving a final ID.
-  - This may require changing `MemberRepository` and `RegisterMemberService`.
-- After the ID approach is approved, design the member persistence adapter:
-  - `member.persistence` package
-  - JPA entity for `members`
-  - Spring Data repository
-  - Adapter implementing `MemberRepository`
-  - Duplicate lookup by login ID and nickname
-  - Save behavior returning `MemberId`
-- Keep signup API, BCrypt, login, JWT, and Post FK out of this slice unless explicitly approved.
-- Use H2-backed `@DataJpaTest` style similar to `JpaPostRepositoryAdapterTest` if persistence is implemented.
-
-Likely questions to ask during brainstorming:
-
-1. Should member IDs continue to be allocated before `Member.register(...)`, or should the member model/application flow be adjusted for persistence-generated IDs?
-2. If IDs stay preallocated, should `nextId()` remain on `MemberRepository`, or move to a separate `MemberIdGenerator` port?
-3. Should the first member persistence slice use H2 only, or introduce Testcontainers MySQL now?
-4. Should `members.login_id` and `members.nickname` have unique constraints in the JPA mapping immediately?
-5. Should `PasswordHash` be stored as-is in `members.password_hash`, with no BCrypt integration yet?
-6. Should `RegisterMemberService` continue returning `memberRepository.save(member)`, or return the preallocated `memberId` after a void save?
-
-Alternative next step:
+Next task:
 
 ```text
-회원가입 API 1차
+Task 4: Add DB-Backed Member ID Generator
 ```
 
-This is possible, but persistence and password hashing/wiring decisions would need to be addressed. A member persistence slice first is the cleaner next step.
+Task 4 planned files:
+
+- `backend/src/test/java/com/dddblog/backend/member/persistence/JpaMemberIdGeneratorTest.java`
+- `backend/src/main/java/com/dddblog/backend/member/persistence/JpaMemberIdSequenceEntity.java`
+- `backend/src/main/java/com/dddblog/backend/member/persistence/SpringDataJpaMemberIdSequenceRepository.java`
+- `backend/src/main/java/com/dddblog/backend/member/persistence/JpaMemberIdGenerator.java`
+
+Task 4 planned behavior:
+
+- Implement `JpaMemberIdGenerator` as `MemberIdGenerator`.
+- Use table `member_id_sequences`.
+- Use row `name = 'member'`.
+- First `nextId()` call creates row and returns `new MemberId(1L)`.
+- Consecutive calls return increasing IDs.
+- Repository lookup should use pessimistic write lock with explicit `@Query`.
+
+Do not start:
+
+- Task 5 full verification until Task 4 is complete.
+- Final branch finishing until Task 5 and final review pass.
+- Signup API, BCrypt, login/JWT, Flyway/Liquibase, member read/update/delete, or Post/member FK.
 
 ## Notes For Next Agent
 
 - The user wants to continue in a new chat.
 - Start by reading this handoff.
-- Then run `superpowers:brainstorming` for `회원 저장소 영속성 1차와 회원 ID 생성 방식`.
-- Do not implement immediately.
-- Ask one clarifying question at a time.
+- Then read `docs/superpowers/plans/2026-06-09-member-persistence-id-generation.md`.
+- Do not restart brainstorming or write a new plan.
+- Continue in worktree `C:\dev\study\ddd-blog\.worktrees\member-persistence-id-generation` on branch `codex/member-persistence-id-generation`.
+- Task 1, Task 2, and Task 3 are complete and reviewed.
+- Task 4 is next.
+- Use `superpowers:subagent-driven-development` if continuing the same workflow.
 - The user prefers Korean documentation and Korean test method names.
-- Preserve pure domain/application style unless a new approved spec changes it.
+- Preserve pure domain/application style.
 - Do not add unrelated refactors or cleanup.
-- Use an isolated worktree before implementation.
-- Current `master` includes the completed member domain slice and the completed member registration application slice.
+- Current `master` does not include this branch's implementation commits yet.
 - Be careful with helper method names under `backend/src/test/java`: the naming-rule command flags ASCII `void` methods in all test source files, including fakes.
+- Be careful not to reintroduce DB-generated member IDs. `members.id` is assigned from `Member.id()`.
+- Be careful not to use Spring Data `save(entity)` for create-only member persistence with assigned IDs; `EntityManager.persist(entity)` is intentional.
+- Known non-blocking issue: full test runs may print Hibernate schema-drop noise from shared MySQL Testcontainers + `ddl-auto=create-drop`, but current targeted and full tests passed during review.
