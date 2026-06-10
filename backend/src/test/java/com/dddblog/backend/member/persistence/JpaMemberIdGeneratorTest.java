@@ -26,6 +26,15 @@ class JpaMemberIdGeneratorTest extends MysqlDataJpaTestSupport {
 	@Autowired
 	private PlatformTransactionManager transactionManager;
 
+	@Autowired
+	private SpringDataJpaMemberIdSequenceRepository memberIdSequenceRepository;
+
+	@Test
+	void 시퀀스_row를_미리_준비한다() {
+		assertThat(memberIdSequenceRepository.findById("member"))
+			.hasValueSatisfying(sequence -> assertThat(sequence.nextValue()).isEqualTo(1L));
+	}
+
 	@Test
 	void ID를_발급하면_양수_ID를_반환한다() {
 		MemberId memberId = memberIdGenerator.nextId();

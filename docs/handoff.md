@@ -203,7 +203,7 @@ Important design note:
 - Current member registration requires `MemberId` before calling `Member.register(...)`.
 - ID generation is now behind the separate `MemberIdGenerator` port.
 - The design decision is complete: member IDs stay preallocated before `Member.register(...)`.
-- The real DB-backed `MemberIdGenerator` is not implemented yet. It is the next task.
+- The real DB-backed `MemberIdGenerator` is implemented in the persistence package.
 
 Member application package is pure Java:
 
@@ -337,8 +337,9 @@ Table mapping:
 Important member persistence details:
 
 - `members.id` is intentionally assigned, not auto-increment.
-- DB-backed ID generation is not implemented yet.
-- `JpaMemberIdSequenceEntity`, `SpringDataJpaMemberIdSequenceRepository`, and `JpaMemberIdGenerator` are still pending for Task 4.
+- DB-backed ID generation is implemented with a `member_id_sequences` table.
+- `JpaMemberIdSequenceEntity`, `SpringDataJpaMemberIdSequenceRepository`, and `JpaMemberIdGenerator` are complete for Task 4.
+- `JpaMemberIdGenerator` initializes the `member` sequence row before first use so pessimistic locking protects ID increments.
 - No member read/update/delete repository methods yet.
 - No Flyway/Liquibase migration yet.
 - No relation/FK between `posts.author_id` and `members.id` yet.
@@ -555,8 +556,8 @@ Do not start:
 - Then read `docs/superpowers/plans/2026-06-09-member-persistence-id-generation.md`.
 - Do not restart brainstorming or write a new plan.
 - Continue in worktree `C:\dev\study\ddd-blog\.worktrees\member-persistence-id-generation` on branch `codex/member-persistence-id-generation`.
-- Task 1, Task 2, and Task 3 are complete and reviewed.
-- Task 4 is next.
+- Task 1, Task 2, Task 3, and Task 4 are complete and reviewed.
+- Task 5 verification has passed locally.
 - Use `superpowers:subagent-driven-development` if continuing the same workflow.
 - The user prefers Korean documentation and Korean test method names.
 - Preserve pure domain/application style.
