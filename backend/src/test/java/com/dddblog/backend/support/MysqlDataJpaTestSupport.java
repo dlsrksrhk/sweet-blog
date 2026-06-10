@@ -19,7 +19,7 @@ public abstract class MysqlDataJpaTestSupport {
 	}
 
 	@DynamicPropertySource
-	static void registerMysqlProperties(DynamicPropertyRegistry registry) {
+	static void mysql_속성을_등록한다(DynamicPropertyRegistry registry) {
 		registry.add("spring.datasource.url", MYSQL::getJdbcUrl);
 		registry.add("spring.datasource.username", MYSQL::getUsername);
 		registry.add("spring.datasource.password", MYSQL::getPassword);
