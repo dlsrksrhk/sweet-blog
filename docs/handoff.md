@@ -8,9 +8,9 @@
 - Java for this project: `C:\java\jdk-21`
 - Spring Boot: `3.5.0`
 - Current implementation branch: `codex/member-persistence-id-generation`
-- Work stopped intentionally after implementation plan Task 3.
-- Working tree before this handoff update: clean
-- Latest implementation commit before this handoff update: `4680e16 fix: use insert semantics for member save`
+- Implementation plan Tasks 1-5 are complete.
+- Working tree after final handoff update: clean
+- Latest code commit: `cd7dd9d fix: initialize member id sequence before use`
 - Latest plan/design commits:
   - `c4508df docs: add member persistence id generation plan`
   - `32eda6f docs: add member persistence id generation design`
@@ -503,6 +503,11 @@ Expected: no output.
 Most relevant recent commits on `codex/member-persistence-id-generation`:
 
 ```text
+cd7dd9d fix: initialize member id sequence before use
+2d92cc2 fix: align mysql test support helper naming
+da643de test: verify member id generator sequence values
+0b37e64 feat: add jpa member id generator
+1c8b383 docs: update handoff after member persistence task 3
 4680e16 fix: use insert semantics for member save
 81c6460 fix: persist generated member id
 5c1b360 feat: add jpa member repository adapter
@@ -515,38 +520,31 @@ c4508df docs: add member persistence id generation plan
 
 ## Recommended Next Step
 
-Continue the existing implementation plan from Task 4:
+Finish the development branch after final verification:
 
 ```text
 docs/superpowers/plans/2026-06-09-member-persistence-id-generation.md
 ```
 
-Next task:
-
-```text
-Task 4: Add DB-Backed Member ID Generator
-```
-
-Task 4 planned files:
+Completed Task 4 files:
 
 - `backend/src/test/java/com/dddblog/backend/member/persistence/JpaMemberIdGeneratorTest.java`
 - `backend/src/main/java/com/dddblog/backend/member/persistence/JpaMemberIdSequenceEntity.java`
 - `backend/src/main/java/com/dddblog/backend/member/persistence/SpringDataJpaMemberIdSequenceRepository.java`
 - `backend/src/main/java/com/dddblog/backend/member/persistence/JpaMemberIdGenerator.java`
 
-Task 4 planned behavior:
+Implemented Task 4 behavior:
 
 - Implement `JpaMemberIdGenerator` as `MemberIdGenerator`.
 - Use table `member_id_sequences`.
 - Use row `name = 'member'`.
-- First `nextId()` call creates row and returns `new MemberId(1L)`.
+- The `member` sequence row is initialized before first use.
+- First `nextId()` call returns `new MemberId(1L)`.
 - Consecutive calls return increasing IDs.
 - Repository lookup should use pessimistic write lock with explicit `@Query`.
 
 Do not start:
 
-- Task 5 full verification until Task 4 is complete.
-- Final branch finishing until Task 5 and final review pass.
 - Signup API, BCrypt, login/JWT, Flyway/Liquibase, member read/update/delete, or Post/member FK.
 
 ## Notes For Next Agent
