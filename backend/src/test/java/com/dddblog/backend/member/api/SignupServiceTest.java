@@ -17,6 +17,7 @@ import com.dddblog.backend.member.application.RegisterMemberService;
 import com.dddblog.backend.member.domain.LoginId;
 import com.dddblog.backend.member.domain.Member;
 import com.dddblog.backend.member.domain.MemberId;
+import com.dddblog.backend.member.domain.MemberName;
 import com.dddblog.backend.member.domain.Nickname;
 import com.dddblog.backend.member.domain.PasswordHash;
 
@@ -47,6 +48,21 @@ class SignupServiceTest {
 		SignupResponse response = signupService.signup(validRequest());
 
 		assertThat(response.memberId()).isEqualTo(1L);
+	}
+
+	@Test
+	void 회원가입을_요청하면_회원_기본_정보를_회원가입_서비스에_전달한다() {
+		FakeMemberRepository memberRepository = new FakeMemberRepository();
+		FakeMemberIdGenerator memberIdGenerator = new FakeMemberIdGenerator();
+		RegisterMemberService registerMemberService = new RegisterMemberService(memberRepository, memberIdGenerator);
+		SignupService signupService = new SignupService(registerMemberService, new FakePasswordEncoder());
+
+		signupService.signup(validRequest());
+
+		Member savedMember = memberRepository.savedMembers().get(0);
+		assertThat(savedMember.name()).isEqualTo(new MemberName("홍길동"));
+		assertThat(savedMember.nickname()).isEqualTo(new Nickname("길동"));
+		assertThat(savedMember.loginId()).isEqualTo(new LoginId("user01"));
 	}
 
 	@Test

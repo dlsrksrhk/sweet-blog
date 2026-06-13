@@ -34,4 +34,11 @@ class RawPasswordTest {
 
 		assertThat(password.value()).isEqualTo("password123");
 	}
+
+	@Test
+	void toString은_원문_비밀번호를_노출하지_않는다() {
+		RawPassword password = new RawPassword("password123");
+
+		assertThat(password.toString()).isEqualTo("[PROTECTED]");
+	}
 }

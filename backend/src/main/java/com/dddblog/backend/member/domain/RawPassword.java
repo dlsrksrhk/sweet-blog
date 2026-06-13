@@ -10,4 +10,9 @@ public record RawPassword(String value) {
 			throw new IllegalArgumentException("Password must be at least 8 characters.");
 		}
 	}
+
+	@Override
+	public String toString() {
+		return "[PROTECTED]";
+	}
 }
