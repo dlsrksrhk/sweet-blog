@@ -10,7 +10,7 @@
 - Current implementation branch: `codex/signup-api`
 - Signup API implementation plan Tasks 1-5 are complete.
 - Task 6 final verification is complete after this handoff refresh.
-- Recent implementation and handoff commits are listed in Recent Commits.
+- Recent implementation commits are listed in Recent Commits.
 - Latest code commit before the handoff updates: `53fe760 test: tie signup response id to persisted member`
 - Latest plan/design commits:
   - `e8891eb docs: add signup api implementation plan`
@@ -556,10 +556,9 @@ Task 6 verification results on 2026-06-13:
 
 ## Recent Commits
 
-Most relevant recent commits on `codex/signup-api`:
+Most relevant implementation commits on `codex/signup-api`:
 
 ```text
-4fc122d docs: update handoff after signup api
 53fe760 test: tie signup response id to persisted member
 6a19bde test: verify signup api vertical slice
 508f65e feat: add signup controller
