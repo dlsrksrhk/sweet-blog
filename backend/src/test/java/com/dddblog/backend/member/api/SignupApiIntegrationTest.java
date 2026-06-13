@@ -14,7 +14,9 @@ import org.springframework.jdbc.core.JdbcTemplate;
 import org.springframework.security.crypto.bcrypt.BCryptPasswordEncoder;
 import org.springframework.test.annotation.DirtiesContext;
 import org.springframework.test.web.servlet.MockMvc;
+import org.springframework.test.web.servlet.MvcResult;
 
+import com.fasterxml.jackson.databind.ObjectMapper;
 import com.dddblog.backend.support.MysqlDataJpaTestSupport;
 
 @SpringBootTest
@@ -28,9 +30,12 @@ class SignupApiIntegrationTest extends MysqlDataJpaTestSupport {
 	@Autowired
 	private JdbcTemplate jdbcTemplate;
 
+	@Autowired
+	private ObjectMapper objectMapper;
+
 	@Test
 	void 회원가입_API는_BCrypt로_해시한_비밀번호를_members에_저장한다() throws Exception {
-		mockMvc.perform(post("/api/auth/signup")
+		MvcResult result = mockMvc.perform(post("/api/auth/signup")
 				.contentType(MediaType.APPLICATION_JSON)
 				.content("""
 					{
@@ -41,7 +46,18 @@ class SignupApiIntegrationTest extends MysqlDataJpaTestSupport {
 					}
 					"""))
 			.andExpect(status().isCreated())
-			.andExpect(jsonPath("$.memberId").isNumber());
+			.andExpect(jsonPath("$.memberId").isNumber())
+			.andReturn();
+
+		Long responseMemberId = objectMapper.readTree(result.getResponse().getContentAsString())
+			.get("memberId")
+			.asLong();
+		Long persistedMemberId = jdbcTemplate.queryForObject(
+			"select id from members where login_id = ?",
+			Long.class,
+			"user01"
+		);
+		assertThat(responseMemberId).isEqualTo(persistedMemberId);
 
 		String passwordHash = jdbcTemplate.queryForObject(
 			"select password_hash from members where login_id = ?",
