@@ -3,17 +3,17 @@
 ## Current State
 
 - Main workspace: `C:\dev\study\ddd-blog`
-- Active implementation worktree: `C:\dev\study\ddd-blog\.worktrees\member-persistence-id-generation`
-- Backend: `C:\dev\study\ddd-blog\.worktrees\member-persistence-id-generation\backend`
+- Active implementation worktree: `C:\dev\study\ddd-blog\.worktrees\signup-api`
+- Backend: `C:\dev\study\ddd-blog\.worktrees\signup-api\backend`
 - Java for this project: `C:\java\jdk-21`
 - Spring Boot: `3.5.0`
-- Current implementation branch: `codex/member-persistence-id-generation`
-- Implementation plan Tasks 1-5 are complete.
-- Working tree after final handoff update: clean
-- Latest code commit: `cd7dd9d fix: initialize member id sequence before use`
+- Current implementation branch: `codex/signup-api`
+- Signup API implementation plan Tasks 1-5 are complete.
+- Task 6 final verification is complete after this handoff refresh.
+- Latest code commit before this handoff update: `53fe760 test: tie signup response id to persisted member`
 - Latest plan/design commits:
-  - `c4508df docs: add member persistence id generation plan`
-  - `32eda6f docs: add member persistence id generation design`
+  - `e8891eb docs: add signup api implementation plan`
+  - `ad51175 docs: add signup api design`
 
 ## Project Rules
 
@@ -25,10 +25,10 @@ Important local rules:
 - Korean test method words are joined with `_`.
 - Pure domain/application tests must not start Spring Context.
 - Domain/application classes in current learning slices should not use Spring or JPA annotations.
-- Spring/JPA annotations are allowed in adapter packages such as `blog.persistence` and will likely be allowed in API/config packages after explicit design approval.
+- Spring/JPA annotations are allowed in adapter, API, and config packages when explicitly designed.
 - Prefer TDD: write a small failing test first, then implement the minimum code to pass.
 - For new feature slices, use `superpowers:brainstorming`, write a Korean spec, then use `superpowers:writing-plans`.
-- Current slice already has approved spec and plan. Continue with the existing implementation plan; do not restart brainstorming.
+- Current slice already has approved spec and plan. Do not restart brainstorming for this branch.
 - Current implementation is already in an isolated worktree.
 
 ## Implemented So Far
@@ -52,6 +52,8 @@ Important local rules:
 - `docs/superpowers/plans/2026-06-08-register-member-application.md`
 - `docs/superpowers/specs/2026-06-09-member-persistence-id-generation-design.md`
 - `docs/superpowers/plans/2026-06-09-member-persistence-id-generation.md`
+- `docs/superpowers/specs/2026-06-13-signup-api-design.md`
+- `docs/superpowers/plans/2026-06-13-signup-api.md`
 
 ### Blog Domain Layer
 
@@ -108,6 +110,7 @@ Implemented:
 - `MemberStatus`
 - `Nickname`
 - `PasswordHash`
+- `RawPassword`
 
 Important member domain behavior:
 
@@ -122,16 +125,16 @@ Important member domain behavior:
 - `PasswordHash` rejects null/blank and stores the given hash string unchanged.
 - `PasswordHash.value()` returns the stored hash.
 - `PasswordHash.toString()` returns `[PROTECTED]` to avoid accidental credential-material leakage.
+- `RawPassword` rejects null, blank, and values shorter than 8 characters.
+- `RawPassword.value()` returns the original raw password value for hashing.
 - `MemberRole` values are `MEMBER`, `ADMIN`.
 - `MemberStatus` values are `ACTIVE`, `INACTIVE`.
 
 Important exclusions still true:
 
-- No member JPA entity/repository yet.
-- No signup API yet.
-- No BCrypt/password encoder integration yet.
 - No login/JWT integration yet.
-- No persistence-backed login ID or nickname duplicate check yet.
+- No member read/update/delete API yet.
+- No persistence-backed authentication flow yet.
 - No relation/FK between `posts.author_id` and a member table yet.
 
 Member domain package is pure Java:
@@ -193,22 +196,44 @@ MemberId nextId();
 
 Important wiring note:
 
-- `RegisterMemberService` is still a pure Java class.
+- `RegisterMemberService` is a pure Java class.
 - It is not annotated with `@Service`.
-- There is not yet a Spring configuration that exposes `RegisterMemberService` as a bean.
-- A future API/config slice must decide how to wire it.
-
-Important design note:
-
-- Current member registration requires `MemberId` before calling `Member.register(...)`.
-- ID generation is now behind the separate `MemberIdGenerator` port.
-- The design decision is complete: member IDs stay preallocated before `Member.register(...)`.
-- The real DB-backed `MemberIdGenerator` is implemented in the persistence package.
+- `backend/src/main/java/com/dddblog/backend/member/config/MemberApplicationConfig.java` exposes it as a Spring bean for the API layer.
 
 Member application package is pure Java:
 
 - No Spring annotations.
 - No JPA annotations.
+
+### Member API Layer
+
+Package:
+
+```text
+backend/src/main/java/com/dddblog/backend/member/api
+```
+
+Implemented:
+
+- `SignupController`
+- `SignupRequest`
+- `SignupResponse`
+- `SignupService`
+
+Behavior:
+
+- `POST /api/auth/signup` accepts `name`, `nickname`, `loginId`, and raw `password`.
+- `SignupService` validates the raw password with `RawPassword`.
+- `SignupService` hashes the password with BCrypt before calling `RegisterMemberService`.
+- Successful signup returns `201 Created` with `memberId`.
+- `IllegalArgumentException` is returned as `400 Bad Request` with `{ "message": "..." }`.
+
+Security behavior:
+
+- `POST /api/auth/signup` is unauthenticated through `SecurityConfig`.
+- Other requests remain authenticated by default.
+- `httpBasic` and `formLogin` were not enabled for this slice.
+- No login/JWT/read API work is included in this slice.
 
 ### Blog Application Layer
 
@@ -292,7 +317,7 @@ Important exclusions still true:
 - No auditing columns yet.
 - No soft delete/view count/published at/cover image persistence yet.
 - No Flyway/Liquibase yet.
-- Repository tests now use MySQL Testcontainers instead of H2.
+- Repository tests use MySQL Testcontainers instead of H2.
 
 ### Member Persistence Layer
 
@@ -307,6 +332,9 @@ Implemented:
 - `JpaMemberEntity`
 - `SpringDataJpaMemberRepository`
 - `JpaMemberRepositoryAdapter`
+- `JpaMemberIdSequenceEntity`
+- `SpringDataJpaMemberIdSequenceRepository`
+- `JpaMemberIdGenerator`
 
 Behavior:
 
@@ -320,6 +348,9 @@ Behavior:
 - `save(member)` returns `new MemberId(entity.id())`.
 - Duplicate login ID is checked through `SpringDataJpaMemberRepository.existsByLoginId(loginId)`.
 - Duplicate nickname is checked through `SpringDataJpaMemberRepository.existsByNickname(nickname)`.
+- `JpaMemberIdGenerator` uses table `member_id_sequences`.
+- The `member` sequence row is initialized before first use.
+- ID generation uses a pessimistic write lock for increments.
 
 Table mapping:
 
@@ -333,16 +364,33 @@ Table mapping:
   - `status`
   - `nickname` has unique constraint.
   - `login_id` has unique constraint.
+- `member_id_sequences`
+  - `name`
+  - `next_value`
 
 Important member persistence details:
 
 - `members.id` is intentionally assigned, not auto-increment.
-- DB-backed ID generation is implemented with a `member_id_sequences` table.
-- `JpaMemberIdSequenceEntity`, `SpringDataJpaMemberIdSequenceRepository`, and `JpaMemberIdGenerator` are complete for Task 4.
-- `JpaMemberIdGenerator` initializes the `member` sequence row before first use so pessimistic locking protects ID increments.
 - No member read/update/delete repository methods yet.
 - No Flyway/Liquibase migration yet.
 - No relation/FK between `posts.author_id` and `members.id` yet.
+
+### Common API And Config
+
+Implemented:
+
+- `backend/src/main/java/com/dddblog/backend/common/api/GlobalExceptionHandler.java`
+- `backend/src/main/java/com/dddblog/backend/config/PasswordConfig.java`
+- `backend/src/main/java/com/dddblog/backend/config/SecurityConfig.java`
+- `backend/src/main/java/com/dddblog/backend/member/config/MemberApplicationConfig.java`
+
+Behavior:
+
+- `GlobalExceptionHandler` maps `IllegalArgumentException` to `400 Bad Request`.
+- Error body shape is `{ "message": "..." }`.
+- `PasswordConfig` provides a `BCryptPasswordEncoder`.
+- `MemberApplicationConfig` wires `RegisterMemberService` from pure application ports.
+- `SecurityConfig` permits unauthenticated signup and authenticates other requests.
 
 ### Dependencies
 
@@ -356,7 +404,7 @@ Backend Gradle dependencies include:
 - `org.testcontainers:junit-jupiter` as `testImplementation`
 - `org.testcontainers:mysql` as `testImplementation`
 
-H2 was removed from test runtime dependencies during the Testcontainers migration.
+H2 was removed from test runtime dependencies during the Testcontainers migration and was not reintroduced.
 
 ### Tests
 
@@ -376,6 +424,12 @@ Member application tests:
 
 ```text
 backend/src/test/java/com/dddblog/backend/member/application
+```
+
+Member API tests:
+
+```text
+backend/src/test/java/com/dddblog/backend/member/api
 ```
 
 Blog application tests:
@@ -402,62 +456,48 @@ JPA test support:
 backend/src/test/java/com/dddblog/backend/support/MysqlDataJpaTestSupport.java
 ```
 
-Implemented application test fake:
+Implemented application test fakes:
 
 - `FakePostRepository`
 - `FakeMemberRepository`
 - `FakeMemberIdGenerator`
 
-Member application test:
+Raw password test scenarios:
 
-- `RegisterMemberServiceTest`
+- `비밀번호가_null이면_생성할_수_없다`
+- `비밀번호가_blank이면_생성할_수_없다`
+- `비밀번호가_8자_미만이면_생성할_수_없다`
+- `유효한_비밀번호이면_원문_값을_반환한다`
 
-Member application test scenarios:
+Signup service test scenarios:
 
-- `유효한_요청이면_회원을_저장하고_ID를_반환한다`
-- `저장된_회원은_요청_값을_도메인_값으로_가진다`
-- `신규_회원은_MEMBER_권한과_ACTIVE_상태를_가진다`
-- `command가_null이면_저장하지_않는다`
-- `로그인_ID가_이미_존재하면_저장하지_않는다`
-- `닉네임이_이미_존재하면_저장하지_않는다`
-- `잘못된_로그인_ID이면_저장하지_않는다`
-- `잘못된_닉네임이면_저장하지_않는다`
-- `잘못된_비밀번호_해시이면_저장하지_않는다`
+- `회원가입을_요청하면_비밀번호를_해시해서_회원가입_서비스에_전달한다`
+- `회원가입에_성공하면_회원_ID를_반환한다`
+- `비밀번호가_8자_미만이면_회원가입_서비스를_호출하지_않는다`
 
-Important member application test detail:
+Signup controller test scenarios:
 
-- `FakeMemberRepository` helper methods intentionally return `FakeMemberRepository` instead of `void`.
-- This avoids matching the project-wide ASCII `void ...` test naming scan, which scans all backend test Java files, not only `*Test.java`.
+- `회원가입에_성공하면_201과_회원_ID를_반환한다`
+- `회원가입_요청이_실패하면_400과_오류_메시지를_반환한다`
+- `인증_없이_회원가입을_요청할_수_있다`
 
-Implemented persistence tests:
+Signup integration test scenario:
 
-- `JpaPostRepositoryAdapterTest`
-- `JpaMemberRepositoryAdapterTest`
+- `회원가입_API는_BCrypt로_해시한_비밀번호를_members에_저장한다`
 
-Blog persistence test scenarios:
+Important signup integration test detail:
 
-- `글을_저장하면_ID를_반환한다`
-- `글을_저장하면_본문_값이_posts에_저장된다`
-- `이미_존재하는_태그는_새로_만들지_않고_재사용한다`
-- `글이_null이면_저장할_수_없다`
-
-Member persistence test scenarios:
-
-- `회원을_저장하면_ID를_반환한다`
-- `회원을_저장하면_members에_도메인_값이_저장된다`
-- `저장된_로그인_ID가_있으면_존재한다고_판단한다`
-- `저장된_닉네임이_있으면_존재한다고_판단한다`
-- `로그인_ID는_중복_저장할_수_없다`
-- `닉네임은_중복_저장할_수_없다`
-- `같은_ID의_회원은_중복_저장할_수_없다`
-- `회원이_null이면_저장할_수_없다`
+- The vertical integration test posts to `/api/auth/signup`.
+- It asserts `201 Created`.
+- It asserts the response `memberId` is the same ID persisted in `members`.
+- It asserts `members.password_hash` is not the raw password.
+- It verifies the stored hash matches the raw password with `BCryptPasswordEncoder`.
 
 Important persistence test detail:
 
 - JPA tests use MySQL Testcontainers through `MysqlDataJpaTestSupport`.
-- Docker must be running for persistence tests.
-- Persisted value tests use `TestEntityManager.flush()` and `clear()` before reloading saved rows.
-- This avoids only verifying the first-level persistence context.
+- Docker must be running for persistence and vertical integration tests.
+- Persisted value tests use `TestEntityManager.flush()` and `clear()` before reloading saved rows where applicable.
 - Full test runs currently pass, but Hibernate may log non-blocking schema-drop noise during shutdown because multiple JPA slice contexts share the static MySQL test container with `ddl-auto=create-drop`.
 
 All backend test method names are Korean scenario-style.
@@ -467,10 +507,9 @@ All backend test method names are Korean scenario-style.
 Run from backend:
 
 ```powershell
-cd C:\dev\study\ddd-blog\.worktrees\member-persistence-id-generation\backend
+cd C:\dev\study\ddd-blog\.worktrees\signup-api\backend
 $env:JAVA_HOME='C:\java\jdk-21'
-$env:Path="$env:JAVA_HOME\bin;$env:Path"
-.\gradlew.bat test
+.\gradlew.bat test --rerun-tasks
 ```
 
 Expected:
@@ -482,7 +521,7 @@ BUILD SUCCESSFUL
 Check test naming rule:
 
 ```powershell
-cd C:\dev\study\ddd-blog\.worktrees\member-persistence-id-generation\backend
+cd C:\dev\study\ddd-blog\.worktrees\signup-api\backend
 Get-ChildItem -Path .\src\test\java\com\dddblog\backend -Recurse -Filter *.java | Select-String -Pattern 'void [a-zA-Z][a-zA-Z0-9_]*\('
 ```
 
@@ -491,72 +530,84 @@ Expected: no output.
 Check no Spring/JPA annotations in pure domain/application packages:
 
 ```powershell
-cd C:\dev\study\ddd-blog\.worktrees\member-persistence-id-generation\backend
-Get-ChildItem -Path .\src\main\java\com\dddblog\backend\blog\domain,.\src\main\java\com\dddblog\backend\blog\application,.\src\main\java\com\dddblog\backend\member\domain -Recurse -Filter *.java | Select-String -Pattern '@Component|@Service|@Repository|@Entity|@Embeddable|@Table|@Transactional'
-Get-ChildItem -Path .\src\main\java\com\dddblog\backend\member\application -Recurse -Filter *.java | Select-String -Pattern '@Component|@Service|@Repository|@Entity|@Embeddable|@Table|@Transactional'
+cd C:\dev\study\ddd-blog\.worktrees\signup-api\backend
+Get-ChildItem -Path .\src\main\java\com\dddblog\backend\blog\domain,.\src\main\java\com\dddblog\backend\blog\application,.\src\main\java\com\dddblog\backend\member\domain,.\src\main\java\com\dddblog\backend\member\application -Recurse -Filter *.java | Select-String -Pattern '@Component|@Service|@Repository|@Entity|@Embeddable|@Table|@Transactional|@Configuration|@Bean'
 ```
 
 Expected: no output.
 
+Check H2 was not reintroduced:
+
+```powershell
+cd C:\dev\study\ddd-blog\.worktrees\signup-api\backend
+rg -n "h2database|jdbc:h2|H2Dialect|com\.h2database" .
+```
+
+Expected: no matches. `rg` exits with code `1` when there are no matches.
+
+Task 6 verification results on 2026-06-13:
+
+- `.\gradlew.bat test --rerun-tasks`: exit `0`, `BUILD SUCCESSFUL`.
+- Test method naming scan: exit `0`, no output.
+- Pure package annotation scan: exit `0`, no output.
+- H2 scan: exit `1`, no matches.
+
 ## Recent Commits
 
-Most relevant recent commits on `codex/member-persistence-id-generation`:
+Most relevant recent commits on `codex/signup-api`:
 
 ```text
+53fe760 test: tie signup response id to persisted member
+6a19bde test: verify signup api vertical slice
+508f65e feat: add signup controller
+def93c3 fix: avoid basic auth in signup security config
+1626a77 feat: configure signup dependencies
+23b20a3 feat: add signup api facade service
+0bc1dd5 feat: add raw password value object
+e8891eb docs: add signup api implementation plan
+ad51175 docs: add signup api design
+22a3910 docs: refresh handoff after final verification
 cd7dd9d fix: initialize member id sequence before use
 2d92cc2 fix: align mysql test support helper naming
-da643de test: verify member id generator sequence values
-0b37e64 feat: add jpa member id generator
-1c8b383 docs: update handoff after member persistence task 3
-4680e16 fix: use insert semantics for member save
-81c6460 fix: persist generated member id
-5c1b360 feat: add jpa member repository adapter
-e384b83 test: run jpa tests with mysql testcontainers
-dc52a10 refactor: split member id generator port
-c4508df docs: add member persistence id generation plan
-32eda6f docs: add member persistence id generation design
-743338b docs: update handoff for member registration
 ```
 
 ## Recommended Next Step
 
-Finish the development branch after final verification:
+Finish the development branch after final review:
 
 ```text
-docs/superpowers/plans/2026-06-09-member-persistence-id-generation.md
+docs/superpowers/plans/2026-06-13-signup-api.md
 ```
 
-Completed Task 4 files:
+Completed signup API slice files:
 
-- `backend/src/test/java/com/dddblog/backend/member/persistence/JpaMemberIdGeneratorTest.java`
-- `backend/src/main/java/com/dddblog/backend/member/persistence/JpaMemberIdSequenceEntity.java`
-- `backend/src/main/java/com/dddblog/backend/member/persistence/SpringDataJpaMemberIdSequenceRepository.java`
-- `backend/src/main/java/com/dddblog/backend/member/persistence/JpaMemberIdGenerator.java`
+- `backend/src/main/java/com/dddblog/backend/member/domain/RawPassword.java`
+- `backend/src/main/java/com/dddblog/backend/member/api/SignupController.java`
+- `backend/src/main/java/com/dddblog/backend/member/api/SignupRequest.java`
+- `backend/src/main/java/com/dddblog/backend/member/api/SignupResponse.java`
+- `backend/src/main/java/com/dddblog/backend/member/api/SignupService.java`
+- `backend/src/main/java/com/dddblog/backend/common/api/GlobalExceptionHandler.java`
+- `backend/src/main/java/com/dddblog/backend/config/PasswordConfig.java`
+- `backend/src/main/java/com/dddblog/backend/config/SecurityConfig.java`
+- `backend/src/main/java/com/dddblog/backend/member/config/MemberApplicationConfig.java`
+- `backend/src/test/java/com/dddblog/backend/member/domain/RawPasswordTest.java`
+- `backend/src/test/java/com/dddblog/backend/member/api/SignupServiceTest.java`
+- `backend/src/test/java/com/dddblog/backend/member/api/SignupControllerTest.java`
+- `backend/src/test/java/com/dddblog/backend/member/api/SignupApiIntegrationTest.java`
 
-Implemented Task 4 behavior:
+Do not start without a new task:
 
-- Implement `JpaMemberIdGenerator` as `MemberIdGenerator`.
-- Use table `member_id_sequences`.
-- Use row `name = 'member'`.
-- The `member` sequence row is initialized before first use.
-- First `nextId()` call returns `new MemberId(1L)`.
-- Consecutive calls return increasing IDs.
-- Repository lookup should use pessimistic write lock with explicit `@Query`.
-
-Do not start:
-
-- Signup API, BCrypt, login/JWT, Flyway/Liquibase, member read/update/delete, or Post/member FK.
+- Login/JWT, member read/update/delete APIs, Flyway/Liquibase, or Post/member FK.
 
 ## Notes For Next Agent
 
-- The user wants to continue in a new chat.
+- The user wants the controller to handle final branch finishing after this review.
 - Start by reading this handoff.
-- Then read `docs/superpowers/plans/2026-06-09-member-persistence-id-generation.md`.
-- Do not restart brainstorming or write a new plan.
-- Continue in worktree `C:\dev\study\ddd-blog\.worktrees\member-persistence-id-generation` on branch `codex/member-persistence-id-generation`.
-- Task 1, Task 2, Task 3, and Task 4 are complete and reviewed.
-- Task 5 verification has passed locally.
-- Use `superpowers:subagent-driven-development` if continuing the same workflow.
+- Then read `docs/superpowers/plans/2026-06-13-signup-api.md`.
+- Continue in worktree `C:\dev\study\ddd-blog\.worktrees\signup-api` on branch `codex/signup-api`.
+- Signup API Tasks 1, 2, 3, 4, and 5 are complete.
+- Task 6 verification passed locally on 2026-06-13.
+- Use `superpowers:finishing-a-development-branch` only when explicitly asked to finish the branch.
 - The user prefers Korean documentation and Korean test method names.
 - Preserve pure domain/application style.
 - Do not add unrelated refactors or cleanup.
@@ -564,4 +615,4 @@ Do not start:
 - Be careful with helper method names under `backend/src/test/java`: the naming-rule command flags ASCII `void` methods in all test source files, including fakes.
 - Be careful not to reintroduce DB-generated member IDs. `members.id` is assigned from `Member.id()`.
 - Be careful not to use Spring Data `save(entity)` for create-only member persistence with assigned IDs; `EntityManager.persist(entity)` is intentional.
-- Known non-blocking issue: full test runs may print Hibernate schema-drop noise from shared MySQL Testcontainers + `ddl-auto=create-drop`, but current targeted and full tests passed during review.
+- Known non-blocking issue: full test runs may print Hibernate schema-drop noise from shared MySQL Testcontainers + `ddl-auto=create-drop`, but the Gradle test result should still be successful.
