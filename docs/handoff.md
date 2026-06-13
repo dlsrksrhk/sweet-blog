@@ -10,7 +10,8 @@
 - Current implementation branch: `codex/signup-api`
 - Signup API implementation plan Tasks 1-5 are complete.
 - Task 6 final verification is complete after this handoff refresh.
-- Latest code commit before this handoff update: `53fe760 test: tie signup response id to persisted member`
+- Latest handoff commit: `4fc122d docs: update handoff after signup api`
+- Latest code commit before the handoff updates: `53fe760 test: tie signup response id to persisted member`
 - Latest plan/design commits:
   - `e8891eb docs: add signup api implementation plan`
   - `ad51175 docs: add signup api design`
@@ -380,6 +381,7 @@ Important member persistence details:
 Implemented:
 
 - `backend/src/main/java/com/dddblog/backend/common/api/GlobalExceptionHandler.java`
+- `backend/src/main/java/com/dddblog/backend/common/api/ErrorResponse.java`
 - `backend/src/main/java/com/dddblog/backend/config/PasswordConfig.java`
 - `backend/src/main/java/com/dddblog/backend/config/SecurityConfig.java`
 - `backend/src/main/java/com/dddblog/backend/member/config/MemberApplicationConfig.java`
@@ -557,6 +559,7 @@ Task 6 verification results on 2026-06-13:
 Most relevant recent commits on `codex/signup-api`:
 
 ```text
+4fc122d docs: update handoff after signup api
 53fe760 test: tie signup response id to persisted member
 6a19bde test: verify signup api vertical slice
 508f65e feat: add signup controller
@@ -587,6 +590,7 @@ Completed signup API slice files:
 - `backend/src/main/java/com/dddblog/backend/member/api/SignupResponse.java`
 - `backend/src/main/java/com/dddblog/backend/member/api/SignupService.java`
 - `backend/src/main/java/com/dddblog/backend/common/api/GlobalExceptionHandler.java`
+- `backend/src/main/java/com/dddblog/backend/common/api/ErrorResponse.java`
 - `backend/src/main/java/com/dddblog/backend/config/PasswordConfig.java`
 - `backend/src/main/java/com/dddblog/backend/config/SecurityConfig.java`
 - `backend/src/main/java/com/dddblog/backend/member/config/MemberApplicationConfig.java`
