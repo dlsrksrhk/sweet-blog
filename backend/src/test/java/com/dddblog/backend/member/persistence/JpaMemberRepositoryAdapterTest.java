@@ -126,6 +126,45 @@ class JpaMemberRepositoryAdapterTest extends MysqlDataJpaTestSupport {
 	}
 
 	@Test
+	void 로그인_ID로_회원을_조회할_수_있다() {
+		memberRepository.save(createMember(40L, "user40", "닉네임40"));
+		entityManager.flush();
+		entityManager.clear();
+
+		Member foundMember = memberRepository.findByLoginId(new LoginId("user40")).orElseThrow();
+
+		assertThat(foundMember.id()).isEqualTo(new MemberId(40L));
+		assertThat(foundMember.name()).isEqualTo(new MemberName("홍길동"));
+		assertThat(foundMember.nickname()).isEqualTo(new Nickname("닉네임40"));
+		assertThat(foundMember.loginId()).isEqualTo(new LoginId("user40"));
+		assertThat(foundMember.passwordHash()).isEqualTo(new PasswordHash("hashed-password"));
+		assertThat(foundMember.role()).isEqualTo(MemberRole.MEMBER);
+		assertThat(foundMember.status()).isEqualTo(MemberStatus.ACTIVE);
+	}
+
+	@Test
+	void 회원_ID로_회원을_조회할_수_있다() {
+		memberRepository.save(createMember(50L, "user50", "닉네임50"));
+		entityManager.flush();
+		entityManager.clear();
+
+		Member foundMember = memberRepository.findById(new MemberId(50L)).orElseThrow();
+
+		assertThat(foundMember.id()).isEqualTo(new MemberId(50L));
+		assertThat(foundMember.loginId()).isEqualTo(new LoginId("user50"));
+	}
+
+	@Test
+	void 존재하지_않는_로그인_ID이면_빈_결과를_반환한다() {
+		assertThat(memberRepository.findByLoginId(new LoginId("missing"))).isEmpty();
+	}
+
+	@Test
+	void 존재하지_않는_회원_ID이면_빈_결과를_반환한다() {
+		assertThat(memberRepository.findById(new MemberId(999L))).isEmpty();
+	}
+
+	@Test
 	void 회원이_null이면_저장할_수_없다() {
 		assertThatThrownBy(() -> memberRepository.save(null))
 			.isInstanceOf(IllegalArgumentException.class)

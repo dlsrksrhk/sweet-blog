@@ -3,6 +3,7 @@ package com.dddblog.backend.member.application;
 import java.util.ArrayList;
 import java.util.HashSet;
 import java.util.List;
+import java.util.Optional;
 import java.util.Set;
 
 import com.dddblog.backend.member.domain.LoginId;
@@ -24,6 +25,20 @@ class FakeMemberRepository implements MemberRepository {
 	@Override
 	public boolean existsByNickname(Nickname nickname) {
 		return existingNicknames.contains(nickname);
+	}
+
+	@Override
+	public Optional<Member> findByLoginId(LoginId loginId) {
+		return savedMembers.stream()
+			.filter(member -> member.loginId().equals(loginId))
+			.findFirst();
+	}
+
+	@Override
+	public Optional<Member> findById(MemberId memberId) {
+		return savedMembers.stream()
+			.filter(member -> member.id().equals(memberId))
+			.findFirst();
 	}
 
 	@Override
