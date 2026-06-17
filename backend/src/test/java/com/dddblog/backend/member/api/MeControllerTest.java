@@ -1,6 +1,7 @@
 package com.dddblog.backend.member.api;
 
 import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
 import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
@@ -17,6 +18,7 @@ import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.dddblog.backend.auth.application.AuthenticationFailedException;
 import com.dddblog.backend.auth.security.AuthenticatedMember;
 import com.dddblog.backend.auth.security.JwtAuthentication;
 import com.dddblog.backend.auth.security.JwtAuthenticationEntryPoint;
@@ -56,7 +58,7 @@ class MeControllerTest {
 
 	@Test
 	void 인증된_요청이면_내_정보를_반환한다() throws Exception {
-		when(meService.getMe(any(MemberId.class)))
+		when(meService.getMe(eq(new MemberId(1L))))
 			.thenReturn(new MeResponse(1L, "홍길동", "길동", "user01", "MEMBER"));
 
 		mockMvc.perform(get("/api/members/me")
@@ -70,6 +72,19 @@ class MeControllerTest {
 			.andExpect(jsonPath("$.loginId").value("user01"))
 			.andExpect(jsonPath("$.role").value("MEMBER"))
 			.andExpect(jsonPath("$.passwordHash").doesNotExist());
+	}
+
+	@Test
+	void 인증된_회원이_존재하지_않으면_401을_반환한다() throws Exception {
+		when(meService.getMe(eq(new MemberId(1L))))
+			.thenThrow(new AuthenticationFailedException());
+
+		mockMvc.perform(get("/api/members/me")
+				.with(authentication(new JwtAuthentication(
+					new AuthenticatedMember(new MemberId(1L), MemberRole.MEMBER)
+				))))
+			.andExpect(status().isUnauthorized())
+			.andExpect(jsonPath("$.message").value("Authentication failed."));
 	}
 
 	@Test
