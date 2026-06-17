@@ -68,8 +68,8 @@ public class JwtTokenProvider implements AccessTokenIssuer {
 				MemberRole.valueOf(claims.get(ROLE_CLAIM, String.class))
 			);
 		}
-		catch (RuntimeException exception) {
-			throw new IllegalArgumentException("Authentication failed.", exception);
+		catch (RuntimeException ignored) {
+			throw new IllegalArgumentException("Authentication failed.");
 		}
 	}
 }

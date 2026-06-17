@@ -36,7 +36,8 @@ class JwtTokenProviderTest {
 
 		assertThatThrownBy(() -> verifier.parseAccessToken(token))
 			.isInstanceOf(IllegalArgumentException.class)
-			.hasMessage("Authentication failed.");
+			.hasMessage("Authentication failed.")
+			.hasNoCause();
 	}
 
 	@Test
@@ -47,7 +48,8 @@ class JwtTokenProviderTest {
 
 		assertThatThrownBy(() -> tokenProvider.parseAccessToken(tamperedToken))
 			.isInstanceOf(IllegalArgumentException.class)
-			.hasMessage("Authentication failed.");
+			.hasMessage("Authentication failed.")
+			.hasNoCause();
 	}
 
 	@Test
@@ -57,7 +59,8 @@ class JwtTokenProviderTest {
 
 		assertThatThrownBy(() -> tokenProvider.parseAccessToken(token))
 			.isInstanceOf(IllegalArgumentException.class)
-			.hasMessage("Authentication failed.");
+			.hasMessage("Authentication failed.")
+			.hasNoCause();
 	}
 
 	private JwtTokenProvider tokenProviderAt(Instant now, long validitySeconds) {
