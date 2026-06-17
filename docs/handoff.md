@@ -584,7 +584,7 @@ Login/auth test scenarios include:
 - JWT authentication filter sets authentication for valid Bearer tokens.
 - JWT authentication filter clears authentication and returns the entry point for invalid Bearer tokens.
 - Current-member API returns member ID, name, nickname, login ID, and role.
-- Current-member API returns `401` for missing, invalid, expired, or inactive/missing authenticated member scenarios.
+- Current-member API returns `401` for missing token, invalid Bearer token, non-member authentication principal, or missing authenticated member.
 - Vertical integration verifies signup, login, Bearer-token authentication, and `/api/members/me`.
 
 Important signup integration test detail:
