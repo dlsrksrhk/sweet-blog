@@ -14,11 +14,12 @@ import org.springframework.http.MediaType;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
+import com.dddblog.backend.auth.security.JwtAuthenticationEntryPoint;
 import com.dddblog.backend.common.api.GlobalExceptionHandler;
 import com.dddblog.backend.config.SecurityConfig;
 
 @WebMvcTest(SignupController.class)
-@Import({GlobalExceptionHandler.class, SecurityConfig.class})
+@Import({GlobalExceptionHandler.class, SecurityConfig.class, JwtAuthenticationEntryPoint.class})
 class SignupControllerTest {
 
 	@Autowired

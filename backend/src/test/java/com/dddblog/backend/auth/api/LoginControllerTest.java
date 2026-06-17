@@ -54,6 +54,13 @@ class LoginControllerTest {
 			.andExpect(jsonPath("$.message").value("Authentication failed."));
 	}
 
+	@Test
+	void 인증이_필요한_요청은_401과_오류_메시지를_반환한다() throws Exception {
+		mockMvc.perform(post("/api/protected"))
+			.andExpect(status().isUnauthorized())
+			.andExpect(jsonPath("$.message").value("Authentication failed."));
+	}
+
 	private String validJson() {
 		return """
 			{

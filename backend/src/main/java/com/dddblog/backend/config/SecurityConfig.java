@@ -10,6 +10,7 @@ import org.springframework.security.config.annotation.web.builders.HttpSecurity;
 import org.springframework.security.config.annotation.web.configurers.AbstractHttpConfigurer;
 import org.springframework.security.web.SecurityFilterChain;
 
+import com.dddblog.backend.auth.security.JwtAuthenticationEntryPoint;
 import com.dddblog.backend.auth.security.JwtProperties;
 
 @Configuration
@@ -17,9 +18,13 @@ import com.dddblog.backend.auth.security.JwtProperties;
 public class SecurityConfig {
 
 	@Bean
-	SecurityFilterChain securityFilterChain(HttpSecurity http) throws Exception {
+	SecurityFilterChain securityFilterChain(
+		HttpSecurity http,
+		JwtAuthenticationEntryPoint jwtAuthenticationEntryPoint
+	) throws Exception {
 		return http
 			.csrf(AbstractHttpConfigurer::disable)
+			.exceptionHandling(exception -> exception.authenticationEntryPoint(jwtAuthenticationEntryPoint))
 			.authorizeHttpRequests(authorize -> authorize
 				.requestMatchers(HttpMethod.POST, "/api/auth/signup").permitAll()
 				.requestMatchers(HttpMethod.POST, "/api/auth/login").permitAll()
