@@ -50,8 +50,8 @@ Important local rules:
 - `docs/superpowers/plans/2026-06-09-member-persistence-id-generation.md`
 - `docs/superpowers/specs/2026-06-13-signup-api-design.md`
 - `docs/superpowers/plans/2026-06-13-signup-api.md`
-- `docs/superpowers/specs/2026-06-14-login-jwt-auth-design.md`
-- `docs/superpowers/plans/2026-06-14-login-jwt-auth.md`
+- `docs/superpowers/specs/2026-06-17-login-jwt-auth-design.md`
+- `docs/superpowers/plans/2026-06-17-login-jwt-auth.md`
 
 ### Blog Domain Layer
 
@@ -707,7 +707,7 @@ ad51175 docs: add signup api design
 Finish the development branch after final review:
 
 ```text
-docs/superpowers/plans/2026-06-14-login-jwt-auth.md
+docs/superpowers/plans/2026-06-17-login-jwt-auth.md
 ```
 
 Do not start without a new task:
@@ -717,7 +717,7 @@ Do not start without a new task:
 ## Notes For Next Agent
 
 - Start by reading this handoff.
-- Then read `docs/superpowers/plans/2026-06-14-login-jwt-auth.md`.
+- Then read `docs/superpowers/plans/2026-06-17-login-jwt-auth.md`.
 - Continue in worktree `C:\dev\study\ddd-blog\.worktrees\login-jwt-auth` on branch `codex/login-jwt-auth`.
 - Login/JWT auth slice implementation is complete as of commit `c524850`.
 - Use `superpowers:finishing-a-development-branch` only when explicitly asked to finish the branch.
