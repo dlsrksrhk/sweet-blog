@@ -3,12 +3,13 @@
 ## Current State
 
 - Main workspace: `C:\dev\study\ddd-blog`
-- Active implementation worktree: `C:\dev\study\ddd-blog\.worktrees\login-jwt-auth`
-- Backend: `C:\dev\study\ddd-blog\.worktrees\login-jwt-auth\backend`
+- Active implementation worktree: none
+- Backend: `C:\dev\study\ddd-blog\backend`
 - Java for this project: `C:\java\jdk-21`
 - Spring Boot: `3.5.0`
-- Current implementation branch: `codex/login-jwt-auth`
+- Current branch: `master`
 - Latest completed backend slice: login and JWT authentication.
+- Latest completed commit: `b50892b fix: correct current member handoff behavior`
 - Recent implementation commits are listed in Recent Commits.
 
 ## Project Rules
@@ -25,7 +26,7 @@ Important local rules:
 - Spring/JPA annotations are allowed in adapter, API, auth security, and config packages when explicitly designed.
 - Prefer TDD: write a small failing test first, then implement the minimum code to pass.
 - For new feature slices, use `superpowers:brainstorming`, write a Korean spec, then use `superpowers:writing-plans`.
-- Current implementation is already in an isolated worktree.
+- There is no active feature worktree after the login/JWT branch was merged locally into `master`.
 
 ## Implemented So Far
 
@@ -618,7 +619,7 @@ All backend test method names are Korean scenario-style.
 Run from backend:
 
 ```powershell
-cd C:\dev\study\ddd-blog\.worktrees\login-jwt-auth\backend
+cd C:\dev\study\ddd-blog\backend
 $env:JAVA_HOME='C:\java\jdk-21'
 $env:Path="$env:JAVA_HOME\bin;$env:Path"
 .\gradlew.bat test --rerun-tasks
@@ -633,7 +634,7 @@ BUILD SUCCESSFUL
 Check test naming rule:
 
 ```powershell
-cd C:\dev\study\ddd-blog\.worktrees\login-jwt-auth\backend
+cd C:\dev\study\ddd-blog\backend
 Get-ChildItem -Path .\src\test\java\com\dddblog\backend -Recurse -Filter *.java | Select-String -Pattern 'void [a-zA-Z][a-zA-Z0-9_]*\('
 ```
 
@@ -642,7 +643,7 @@ Expected: no output.
 Check no Spring/JPA annotations in pure domain/application packages:
 
 ```powershell
-cd C:\dev\study\ddd-blog\.worktrees\login-jwt-auth\backend
+cd C:\dev\study\ddd-blog\backend
 Get-ChildItem -Path .\src\main\java\com\dddblog\backend\blog\domain,.\src\main\java\com\dddblog\backend\blog\application,.\src\main\java\com\dddblog\backend\member\domain,.\src\main\java\com\dddblog\backend\member\application -Recurse -Filter *.java | Select-String -Pattern '@Component|@Service|@Repository|@Entity|@Embeddable|@Table|@Transactional|@Configuration|@Bean'
 ```
 
@@ -651,7 +652,7 @@ Expected: no output.
 Check H2 was not reintroduced:
 
 ```powershell
-cd C:\dev\study\ddd-blog\.worktrees\login-jwt-auth\backend
+cd C:\dev\study\ddd-blog\backend
 rg -n "h2database|jdbc:h2|H2Dialect|com\.h2database" .
 ```
 
@@ -660,7 +661,7 @@ Expected: no matches. `rg` exits with code `1` when there are no matches.
 Check whitespace:
 
 ```powershell
-cd C:\dev\study\ddd-blog\.worktrees\login-jwt-auth
+cd C:\dev\study\ddd-blog
 git diff --check
 ```
 
@@ -668,10 +669,14 @@ Expected: no output.
 
 ## Recent Commits
 
-Most relevant implementation commits on `codex/login-jwt-auth`:
+Most relevant login/JWT implementation commits now merged into `master`:
 
 ```text
 c524850 test: verify login jwt auth flow
+cd65aad test: localize junit lifecycle method names
+d0d14b2 docs: update handoff after login jwt auth
+ded5ef2 fix: correct login jwt handoff paths
+b50892b fix: correct current member handoff behavior
 85ef2e4 fix: tighten current member api tests
 0db36c4 feat: add current member api
 c5d1b07 fix: cover jwt authentication filter behavior
@@ -704,27 +709,44 @@ ad51175 docs: add signup api design
 
 ## Recommended Next Step
 
-Finish the development branch after final review:
+Recommended next milestone: authenticated post creation API.
 
 ```text
-docs/superpowers/plans/2026-06-17-login-jwt-auth.md
+POST /api/posts
 ```
+
+Why this is next:
+
+- The project requirements sequence after signup/login/JWT/current-member lookup is authenticated post creation.
+- Blog domain, `CreatePostService`, and `JpaPostRepositoryAdapter` already exist.
+- The new auth slice provides `AuthenticatedMember.memberId`, which can be converted to `AuthorId` for post creation.
+- This milestone will connect existing Blog application/persistence behavior to HTTP while exercising authorization identity flow.
+
+Suggested scope:
+
+- Brainstorm and write a spec for `POST /api/posts`.
+- Add a Spring configuration that exposes pure `CreatePostService` as a bean.
+- Add a thin API layer that accepts title, content Markdown, summary, tags, and status.
+- Derive author ID from `AuthenticatedMember`, not from request body.
+- Return `201 Created` with created post ID.
+- Keep image/cover image, post read APIs, update/delete APIs, publish workflows, and post/member FK out of this slice unless explicitly approved.
 
 Do not start without a new task:
 
-- Refresh Token, token reissue, server-side logout/blacklist, member update/delete APIs, Flyway/Liquibase, post/member FK, or post API integration with authenticated member.
+- Refresh Token, token reissue, server-side logout/blacklist, member update/delete APIs, Flyway/Liquibase, post/member FK, post read/update/delete APIs, or frontend work.
 
 ## Notes For Next Agent
 
 - Start by reading this handoff.
-- Then read `docs/superpowers/plans/2026-06-17-login-jwt-auth.md`.
-- Continue in worktree `C:\dev\study\ddd-blog\.worktrees\login-jwt-auth` on branch `codex/login-jwt-auth`.
-- Login/JWT auth slice implementation is complete as of commit `c524850`.
+- Then read `docs/requirements.md`, `docs/superpowers/specs/2026-06-07-create-post-application-design.md`, and `docs/superpowers/plans/2026-06-07-create-post-application.md`.
+- Start a new feature slice from `master`.
+- Use `superpowers:brainstorming` before designing the authenticated post creation API.
+- Login/JWT auth slice implementation is merged into `master` as of commit `b50892b`.
 - Use `superpowers:finishing-a-development-branch` only when explicitly asked to finish the branch.
 - The user prefers Korean documentation and Korean test method names.
 - Preserve pure `member.domain` and `member.application` style.
 - Do not add unrelated refactors or cleanup.
-- Current `master` may not include this branch's implementation commits yet.
+- Current `master` includes the login/JWT implementation commits.
 - Be careful with helper method names under `backend/src/test/java`: the naming-rule command flags ASCII `void` methods in all test source files, including fakes.
 - Be careful not to reintroduce DB-generated member IDs. `members.id` is assigned from `Member.id()`.
 - Be careful not to use Spring Data `save(entity)` for create-only member persistence with assigned IDs; `EntityManager.persist(entity)` is intentional.
