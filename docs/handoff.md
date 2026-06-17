@@ -3,18 +3,13 @@
 ## Current State
 
 - Main workspace: `C:\dev\study\ddd-blog`
-- Active implementation worktree: `C:\dev\study\ddd-blog\.worktrees\signup-api`
-- Backend: `C:\dev\study\ddd-blog\.worktrees\signup-api\backend`
+- Active implementation worktree: `C:\dev\study\ddd-blog\.worktrees\login-jwt-auth`
+- Backend: `C:\dev\study\ddd-blog\.worktrees\login-jwt-auth\backend`
 - Java for this project: `C:\java\jdk-21`
 - Spring Boot: `3.5.0`
-- Current implementation branch: `codex/signup-api`
-- Signup API implementation plan Tasks 1-5 are complete.
-- Task 6 final verification is complete after this handoff refresh.
+- Current implementation branch: `codex/login-jwt-auth`
+- Latest completed backend slice: login and JWT authentication.
 - Recent implementation commits are listed in Recent Commits.
-- Latest code commit before the handoff updates: `53fe760 test: tie signup response id to persisted member`
-- Latest plan/design commits:
-  - `e8891eb docs: add signup api implementation plan`
-  - `ad51175 docs: add signup api design`
 
 ## Project Rules
 
@@ -25,11 +20,11 @@ Important local rules:
 - Backend test method names must be Korean scenario-style names.
 - Korean test method words are joined with `_`.
 - Pure domain/application tests must not start Spring Context.
-- Domain/application classes in current learning slices should not use Spring or JPA annotations.
-- Spring/JPA annotations are allowed in adapter, API, and config packages when explicitly designed.
+- `member.domain` and `member.application` must remain free of Spring/JPA annotations.
+- Domain rules should stay in value objects and aggregates where possible.
+- Spring/JPA annotations are allowed in adapter, API, auth security, and config packages when explicitly designed.
 - Prefer TDD: write a small failing test first, then implement the minimum code to pass.
 - For new feature slices, use `superpowers:brainstorming`, write a Korean spec, then use `superpowers:writing-plans`.
-- Current slice already has approved spec and plan. Do not restart brainstorming for this branch.
 - Current implementation is already in an isolated worktree.
 
 ## Implemented So Far
@@ -55,6 +50,8 @@ Important local rules:
 - `docs/superpowers/plans/2026-06-09-member-persistence-id-generation.md`
 - `docs/superpowers/specs/2026-06-13-signup-api-design.md`
 - `docs/superpowers/plans/2026-06-13-signup-api.md`
+- `docs/superpowers/specs/2026-06-14-login-jwt-auth-design.md`
+- `docs/superpowers/plans/2026-06-14-login-jwt-auth.md`
 
 ### Blog Domain Layer
 
@@ -131,13 +128,6 @@ Important member domain behavior:
 - `MemberRole` values are `MEMBER`, `ADMIN`.
 - `MemberStatus` values are `ACTIVE`, `INACTIVE`.
 
-Important exclusions still true:
-
-- No login/JWT integration yet.
-- No member read/update/delete API yet.
-- No persistence-backed authentication flow yet.
-- No relation/FK between `posts.author_id` and a member table yet.
-
 Member domain package is pure Java:
 
 - No Spring annotations.
@@ -180,12 +170,16 @@ Behavior:
 - `MemberIdGenerator.nextId()` is called only after command validation and duplicate checks pass.
 - `Member.register(memberId, name, nickname, loginId, passwordHash)` creates the new member.
 - `MemberRepository.save(member)` is called and its returned `MemberId` is returned from the service.
+- `MemberRepository.findByLoginId(loginId)` reads members for login.
+- `MemberRepository.findById(memberId)` reads members for the current-member API.
 
 `MemberRepository` methods:
 
 ```java
 boolean existsByLoginId(LoginId loginId);
 boolean existsByNickname(Nickname nickname);
+Optional<Member> findByLoginId(LoginId loginId);
+Optional<Member> findById(MemberId memberId);
 MemberId save(Member member);
 ```
 
@@ -206,7 +200,7 @@ Member application package is pure Java:
 - No Spring annotations.
 - No JPA annotations.
 
-### Member API Layer
+### Signup API Behavior
 
 Package:
 
@@ -232,9 +226,60 @@ Behavior:
 Security behavior:
 
 - `POST /api/auth/signup` is unauthenticated through `SecurityConfig`.
-- Other requests remain authenticated by default.
-- `httpBasic` and `formLogin` were not enabled for this slice.
-- No login/JWT/read API work is included in this slice.
+- Other requests are authenticated by default, except `POST /api/auth/login`.
+- `httpBasic`, `formLogin`, and server-side `logout` are disabled.
+
+### Implemented Auth Behavior
+
+- `POST /api/auth/login` authenticates by login ID and password.
+- Successful login returns `{ "accessToken": "..." }`.
+- Access Token is a JWT containing member ID, role, token type, issued-at, and expiration.
+- `Authorization: Bearer <token>` authenticates protected requests.
+- `GET /api/members/me` returns member ID, name, nickname, login ID, and role.
+- Login failure, missing token, invalid token, expired token, and inactive member all return `401 { "message": "Authentication failed." }`.
+- Logout is client-side token deletion. There is no server logout endpoint in this slice.
+
+Auth packages:
+
+```text
+backend/src/main/java/com/dddblog/backend/auth/api
+backend/src/main/java/com/dddblog/backend/auth/application
+backend/src/main/java/com/dddblog/backend/auth/security
+```
+
+Implemented:
+
+- `LoginController`
+- `LoginRequest`
+- `LoginResponse`
+- `LoginService`
+- `AuthenticationFailedException`
+- `AccessTokenIssuer`
+- `JwtTokenProvider`
+- `JwtProperties`
+- `JwtAuthenticationFilter`
+- `JwtAuthenticationEntryPoint`
+- `JwtAuthentication`
+- `AuthenticatedMember`
+- `ParsedAccessToken`
+
+Important auth behavior:
+
+- `LoginService.login(loginId, password)` reads the member by `LoginId`.
+- Invalid login ID format is normalized to `Authentication failed.`
+- Missing password is normalized to `Authentication failed.`
+- Password checks use Spring Security's `PasswordEncoder`.
+- Inactive members cannot log in.
+- `JwtTokenProvider` signs access tokens with the configured JWT secret.
+- JWT subject stores `memberId`.
+- JWT claims include `role` and token `type`.
+- Only token type `access` is accepted by `parseAccessToken`.
+- JWT parse, signature, expiration, malformed-token, and wrong-type failures are normalized to `Authentication failed.`
+- `JwtAuthenticationFilter` reads only `Authorization: Bearer ...` tokens.
+- Missing or non-Bearer authorization headers continue through the filter chain and protected endpoints fail through Spring Security's authentication entry point.
+- Invalid Bearer tokens clear the security context and return the authentication entry point response.
+- `MeController` uses `@AuthenticationPrincipal AuthenticatedMember`.
+- `MeService` reloads the current member by ID; a missing member returns `Authentication failed.`
 
 ### Blog Application Layer
 
@@ -311,7 +356,7 @@ Table mapping:
   - `tag_id`
   - `(post_id, tag_id)` has unique constraint.
 
-Important exclusions still true:
+Important blog persistence exclusions still true:
 
 - No read repository method yet.
 - No update/delete repository method yet.
@@ -349,6 +394,8 @@ Behavior:
 - `save(member)` returns `new MemberId(entity.id())`.
 - Duplicate login ID is checked through `SpringDataJpaMemberRepository.existsByLoginId(loginId)`.
 - Duplicate nickname is checked through `SpringDataJpaMemberRepository.existsByNickname(nickname)`.
+- `findByLoginId(loginId)` maps a persisted row back to a `Member`.
+- `findById(memberId)` maps a persisted row back to a `Member`.
 - `JpaMemberIdGenerator` uses table `member_id_sequences`.
 - The `member` sequence row is initialized before first use.
 - ID generation uses a pessimistic write lock for increments.
@@ -372,7 +419,7 @@ Table mapping:
 Important member persistence details:
 
 - `members.id` is intentionally assigned, not auto-increment.
-- No member read/update/delete repository methods yet.
+- No member update/delete repository methods yet.
 - No Flyway/Liquibase migration yet.
 - No relation/FK between `posts.author_id` and `members.id` yet.
 
@@ -389,10 +436,14 @@ Implemented:
 Behavior:
 
 - `GlobalExceptionHandler` maps `IllegalArgumentException` to `400 Bad Request`.
+- `GlobalExceptionHandler` maps `AuthenticationFailedException` to `401 Unauthorized`.
 - Error body shape is `{ "message": "..." }`.
 - `PasswordConfig` provides a `BCryptPasswordEncoder`.
 - `MemberApplicationConfig` wires `RegisterMemberService` from pure application ports.
-- `SecurityConfig` permits unauthenticated signup and authenticates other requests.
+- `SecurityConfig` permits unauthenticated signup and login.
+- `SecurityConfig` authenticates all other requests by default.
+- `SecurityConfig` is stateless and disables CSRF, HTTP Basic, form login, and server-side logout.
+- `SecurityConfig` adds `JwtAuthenticationFilter` before `UsernamePasswordAuthenticationFilter`.
 
 ### Dependencies
 
@@ -403,12 +454,29 @@ Backend Gradle dependencies include:
 - `spring-boot-starter-validation`
 - `spring-boot-starter-web`
 - `mysql-connector-j`
+- `io.jsonwebtoken:jjwt-api`
+- `io.jsonwebtoken:jjwt-impl` as `runtimeOnly`
+- `io.jsonwebtoken:jjwt-jackson` as `runtimeOnly`
 - `org.testcontainers:junit-jupiter` as `testImplementation`
 - `org.testcontainers:mysql` as `testImplementation`
 
 H2 was removed from test runtime dependencies during the Testcontainers migration and was not reintroduced.
 
-### Tests
+## Exclusions Still True
+
+- No Refresh Token.
+- No token reissue.
+- No server-side logout or blacklist.
+- No member update/delete API.
+- No post API integration with authenticated member yet.
+
+Additional exclusions still true:
+
+- No Flyway/Liquibase migration yet.
+- No relation/FK between `posts.author_id` and `members.id` yet.
+- No post read/update/delete API yet.
+
+## Tests
 
 Blog domain tests:
 
@@ -426,6 +494,24 @@ Member application tests:
 
 ```text
 backend/src/test/java/com/dddblog/backend/member/application
+```
+
+Auth application tests:
+
+```text
+backend/src/test/java/com/dddblog/backend/auth/application
+```
+
+Auth API tests:
+
+```text
+backend/src/test/java/com/dddblog/backend/auth/api
+```
+
+Auth security tests:
+
+```text
+backend/src/test/java/com/dddblog/backend/auth/security
 ```
 
 Member API tests:
@@ -487,6 +573,20 @@ Signup integration test scenario:
 
 - `회원가입_API는_BCrypt로_해시한_비밀번호를_members에_저장한다`
 
+Login/auth test scenarios include:
+
+- Login service success with valid login ID and password.
+- Login service failure for missing member, invalid login ID format, wrong password, missing password, and inactive member.
+- Login controller success response with `accessToken`.
+- Login controller `401` response with `Authentication failed.`
+- JWT token provider creates and parses access tokens.
+- JWT token provider rejects malformed, invalid, expired, or wrong-type tokens with normalized failure.
+- JWT authentication filter sets authentication for valid Bearer tokens.
+- JWT authentication filter clears authentication and returns the entry point for invalid Bearer tokens.
+- Current-member API returns member ID, name, nickname, login ID, and role.
+- Current-member API returns `401` for missing, invalid, expired, or inactive/missing authenticated member scenarios.
+- Vertical integration verifies signup, login, Bearer-token authentication, and `/api/members/me`.
+
 Important signup integration test detail:
 
 - The vertical integration test posts to `/api/auth/signup`.
@@ -494,6 +594,15 @@ Important signup integration test detail:
 - It asserts the response `memberId` is the same ID persisted in `members`.
 - It asserts `members.password_hash` is not the raw password.
 - It verifies the stored hash matches the raw password with `BCryptPasswordEncoder`.
+
+Important auth integration test detail:
+
+- The vertical integration test signs up a member, then posts to `/api/auth/login`.
+- It asserts `200 OK`.
+- It asserts the response contains a string `accessToken`.
+- It calls `GET /api/members/me` with `Authorization: Bearer <accessToken>`.
+- It asserts the response contains member ID, name, nickname, login ID, and role.
+- It verifies invalid Bearer tokens return `401 { "message": "Authentication failed." }`.
 
 Important persistence test detail:
 
@@ -509,8 +618,9 @@ All backend test method names are Korean scenario-style.
 Run from backend:
 
 ```powershell
-cd C:\dev\study\ddd-blog\.worktrees\signup-api\backend
+cd C:\dev\study\ddd-blog\.worktrees\login-jwt-auth\backend
 $env:JAVA_HOME='C:\java\jdk-21'
+$env:Path="$env:JAVA_HOME\bin;$env:Path"
 .\gradlew.bat test --rerun-tasks
 ```
 
@@ -523,7 +633,7 @@ BUILD SUCCESSFUL
 Check test naming rule:
 
 ```powershell
-cd C:\dev\study\ddd-blog\.worktrees\signup-api\backend
+cd C:\dev\study\ddd-blog\.worktrees\login-jwt-auth\backend
 Get-ChildItem -Path .\src\test\java\com\dddblog\backend -Recurse -Filter *.java | Select-String -Pattern 'void [a-zA-Z][a-zA-Z0-9_]*\('
 ```
 
@@ -532,7 +642,7 @@ Expected: no output.
 Check no Spring/JPA annotations in pure domain/application packages:
 
 ```powershell
-cd C:\dev\study\ddd-blog\.worktrees\signup-api\backend
+cd C:\dev\study\ddd-blog\.worktrees\login-jwt-auth\backend
 Get-ChildItem -Path .\src\main\java\com\dddblog\backend\blog\domain,.\src\main\java\com\dddblog\backend\blog\application,.\src\main\java\com\dddblog\backend\member\domain,.\src\main\java\com\dddblog\backend\member\application -Recurse -Filter *.java | Select-String -Pattern '@Component|@Service|@Repository|@Entity|@Embeddable|@Table|@Transactional|@Configuration|@Bean'
 ```
 
@@ -541,22 +651,44 @@ Expected: no output.
 Check H2 was not reintroduced:
 
 ```powershell
-cd C:\dev\study\ddd-blog\.worktrees\signup-api\backend
+cd C:\dev\study\ddd-blog\.worktrees\login-jwt-auth\backend
 rg -n "h2database|jdbc:h2|H2Dialect|com\.h2database" .
 ```
 
 Expected: no matches. `rg` exits with code `1` when there are no matches.
 
-Task 6 verification results on 2026-06-13:
+Check whitespace:
 
-- `.\gradlew.bat test --rerun-tasks`: exit `0`, `BUILD SUCCESSFUL`.
-- Test method naming scan: exit `0`, no output.
-- Pure package annotation scan: exit `0`, no output.
-- H2 scan: exit `1`, no matches.
+```powershell
+cd C:\dev\study\ddd-blog\.worktrees\login-jwt-auth
+git diff --check
+```
+
+Expected: no output.
 
 ## Recent Commits
 
-Most relevant implementation commits on `codex/signup-api`:
+Most relevant implementation commits on `codex/login-jwt-auth`:
+
+```text
+c524850 test: verify login jwt auth flow
+85ef2e4 fix: tighten current member api tests
+0db36c4 feat: add current member api
+c5d1b07 fix: cover jwt authentication filter behavior
+c934338 feat: add jwt authentication filter
+3cf9a13 fix: wire authentication entry point
+f5d0127 feat: add login api
+a7364df fix: normalize missing login password failure
+a0b8a7f feat: add login service
+69f9a3f feat: add member repository read methods
+208b5c9 fix: avoid leaking jwt parse causes
+db1cfbc feat: add jwt token provider
+dd0783c build: add jwt dependencies
+33d8164 docs: add login jwt auth implementation plan
+c5dcbab docs: add login jwt auth design
+```
+
+Earlier signup API commits remain relevant background:
 
 ```text
 53fe760 test: tie signup response id to persisted member
@@ -568,9 +700,6 @@ def93c3 fix: avoid basic auth in signup security config
 0bc1dd5 feat: add raw password value object
 e8891eb docs: add signup api implementation plan
 ad51175 docs: add signup api design
-22a3910 docs: refresh handoff after final verification
-cd7dd9d fix: initialize member id sequence before use
-2d92cc2 fix: align mysql test support helper naming
 ```
 
 ## Recommended Next Step
@@ -578,43 +707,24 @@ cd7dd9d fix: initialize member id sequence before use
 Finish the development branch after final review:
 
 ```text
-docs/superpowers/plans/2026-06-13-signup-api.md
+docs/superpowers/plans/2026-06-14-login-jwt-auth.md
 ```
-
-Completed signup API slice files:
-
-- `backend/src/main/java/com/dddblog/backend/member/domain/RawPassword.java`
-- `backend/src/main/java/com/dddblog/backend/member/api/SignupController.java`
-- `backend/src/main/java/com/dddblog/backend/member/api/SignupRequest.java`
-- `backend/src/main/java/com/dddblog/backend/member/api/SignupResponse.java`
-- `backend/src/main/java/com/dddblog/backend/member/api/SignupService.java`
-- `backend/src/main/java/com/dddblog/backend/common/api/GlobalExceptionHandler.java`
-- `backend/src/main/java/com/dddblog/backend/common/api/ErrorResponse.java`
-- `backend/src/main/java/com/dddblog/backend/config/PasswordConfig.java`
-- `backend/src/main/java/com/dddblog/backend/config/SecurityConfig.java`
-- `backend/src/main/java/com/dddblog/backend/member/config/MemberApplicationConfig.java`
-- `backend/src/test/java/com/dddblog/backend/member/domain/RawPasswordTest.java`
-- `backend/src/test/java/com/dddblog/backend/member/api/SignupServiceTest.java`
-- `backend/src/test/java/com/dddblog/backend/member/api/SignupControllerTest.java`
-- `backend/src/test/java/com/dddblog/backend/member/api/SignupApiIntegrationTest.java`
 
 Do not start without a new task:
 
-- Login/JWT, member read/update/delete APIs, Flyway/Liquibase, or Post/member FK.
+- Refresh Token, token reissue, server-side logout/blacklist, member update/delete APIs, Flyway/Liquibase, post/member FK, or post API integration with authenticated member.
 
 ## Notes For Next Agent
 
-- The user wants the controller to handle final branch finishing after this review.
 - Start by reading this handoff.
-- Then read `docs/superpowers/plans/2026-06-13-signup-api.md`.
-- Continue in worktree `C:\dev\study\ddd-blog\.worktrees\signup-api` on branch `codex/signup-api`.
-- Signup API Tasks 1, 2, 3, 4, and 5 are complete.
-- Task 6 verification passed locally on 2026-06-13.
+- Then read `docs/superpowers/plans/2026-06-14-login-jwt-auth.md`.
+- Continue in worktree `C:\dev\study\ddd-blog\.worktrees\login-jwt-auth` on branch `codex/login-jwt-auth`.
+- Login/JWT auth slice implementation is complete as of commit `c524850`.
 - Use `superpowers:finishing-a-development-branch` only when explicitly asked to finish the branch.
 - The user prefers Korean documentation and Korean test method names.
-- Preserve pure domain/application style.
+- Preserve pure `member.domain` and `member.application` style.
 - Do not add unrelated refactors or cleanup.
-- Current `master` does not include this branch's implementation commits yet.
+- Current `master` may not include this branch's implementation commits yet.
 - Be careful with helper method names under `backend/src/test/java`: the naming-rule command flags ASCII `void` methods in all test source files, including fakes.
 - Be careful not to reintroduce DB-generated member IDs. `members.id` is assigned from `Member.id()`.
 - Be careful not to use Spring Data `save(entity)` for create-only member persistence with assigned IDs; `EntityManager.persist(entity)` is intentional.
