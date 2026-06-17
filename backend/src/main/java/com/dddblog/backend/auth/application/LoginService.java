@@ -29,6 +29,9 @@ public class LoginService {
 		LoginId memberLoginId = toLoginId(loginId);
 		Member member = memberRepository.findByLoginId(memberLoginId)
 			.orElseThrow(AuthenticationFailedException::new);
+		if (password == null) {
+			throw new AuthenticationFailedException();
+		}
 		if (!passwordEncoder.matches(password, member.passwordHash().value())) {
 			throw new AuthenticationFailedException();
 		}

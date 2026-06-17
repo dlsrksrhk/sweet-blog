@@ -58,6 +58,15 @@ class LoginServiceTest {
 	}
 
 	@Test
+	void 비밀번호가_없으면_인증에_실패한다() {
+		memberRepository.save(activeMember());
+
+		assertThatThrownBy(() -> loginService.login("user01", null))
+			.isInstanceOf(AuthenticationFailedException.class)
+			.hasMessage("Authentication failed.");
+	}
+
+	@Test
 	void 비활성_회원이면_인증에_실패한다() {
 		memberRepository.save(inactiveMember());
 
@@ -136,6 +145,9 @@ class LoginServiceTest {
 
 		@Override
 		public boolean matches(CharSequence rawPassword, String encodedPassword) {
+			if (rawPassword == null) {
+				throw new IllegalArgumentException("Raw password must not be null.");
+			}
 			return encode(rawPassword).equals(encodedPassword);
 		}
 	}
