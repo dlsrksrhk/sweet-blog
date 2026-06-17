@@ -43,13 +43,13 @@ class JwtAuthenticationFilterTest {
 	private JwtAuthenticationFilter filter;
 
 	@BeforeEach
-	void setUp() {
+	void 테스트_준비() {
 		SecurityContextHolder.clearContext();
 		filter = new JwtAuthenticationFilter(tokenProvider, authenticationEntryPoint);
 	}
 
 	@AfterEach
-	void tearDown() {
+	void 테스트_정리() {
 		SecurityContextHolder.clearContext();
 	}
 

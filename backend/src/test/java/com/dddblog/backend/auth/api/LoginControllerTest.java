@@ -42,7 +42,7 @@ class LoginControllerTest {
 	private JwtAuthenticationFilter jwtAuthenticationFilter;
 
 	@BeforeEach
-	void setUp() throws Exception {
+	void 테스트_준비() throws Exception {
 		doAnswer(invocation -> {
 			ServletRequest request = invocation.getArgument(0);
 			ServletResponse response = invocation.getArgument(1);
