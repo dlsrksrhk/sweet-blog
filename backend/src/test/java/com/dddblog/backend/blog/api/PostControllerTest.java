@@ -56,6 +56,9 @@ class PostControllerTest {
 	private PostDetailApiService postDetailApiService;
 
 	@MockitoBean
+	private PostListApiService postListApiService;
+
+	@MockitoBean
 	private JwtAuthenticationFilter jwtAuthenticationFilter;
 
 	@BeforeEach
@@ -225,6 +228,82 @@ class PostControllerTest {
 			.andExpect(jsonPath("$.createdAt").value("2026-06-27T10:15:30Z"))
 			.andExpect(jsonPath("$.updatedAt").value("2026-06-27T10:15:30Z"))
 			.andExpect(jsonPath("$.publishedAt").value("2026-06-27T10:15:30Z"));
+	}
+
+	@Test
+	void 공개_글_목록을_200으로_반환한다() throws Exception {
+		when(postListApiService.getList(1, 10))
+			.thenReturn(new PostListResponse(
+				List.of(new PostListItemResponse(
+					10L,
+					1L,
+					"DDD 시작하기",
+					"DDD 소개",
+					List.of("ddd", "tdd"),
+					PostStatus.PUBLISHED,
+					TIMESTAMP,
+					TIMESTAMP,
+					TIMESTAMP
+				)),
+				1,
+				10,
+				11,
+				2,
+				false
+			));
+
+		mockMvc.perform(get("/api/posts")
+				.param("page", "1")
+				.param("size", "10"))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.items[0].postId").value(10L))
+			.andExpect(jsonPath("$.items[0].authorId").value(1L))
+			.andExpect(jsonPath("$.items[0].title").value("DDD 시작하기"))
+			.andExpect(jsonPath("$.items[0].summary").value("DDD 소개"))
+			.andExpect(jsonPath("$.items[0].tags[0]").value("ddd"))
+			.andExpect(jsonPath("$.items[0].tags[1]").value("tdd"))
+			.andExpect(jsonPath("$.items[0].status").value("PUBLISHED"))
+			.andExpect(jsonPath("$.items[0].createdAt").value("2026-06-27T10:15:30Z"))
+			.andExpect(jsonPath("$.items[0].updatedAt").value("2026-06-27T10:15:30Z"))
+			.andExpect(jsonPath("$.items[0].publishedAt").value("2026-06-27T10:15:30Z"))
+			.andExpect(jsonPath("$.page").value(1))
+			.andExpect(jsonPath("$.size").value(10))
+			.andExpect(jsonPath("$.totalElements").value(11))
+			.andExpect(jsonPath("$.totalPages").value(2))
+			.andExpect(jsonPath("$.hasNext").value(false));
+	}
+
+	@Test
+	void 토큰_없이_공개_글_목록을_조회할_수_있다() throws Exception {
+		when(postListApiService.getList(null, null))
+			.thenReturn(new PostListResponse(List.of(), 0, 20, 0, 0, false));
+
+		mockMvc.perform(get("/api/posts"))
+			.andExpect(status().isOk());
+	}
+
+	@Test
+	void 페이지가_유효하지_않으면_400을_반환한다() throws Exception {
+		when(postListApiService.getList(-1, 10))
+			.thenThrow(new IllegalArgumentException("Page must be zero or positive."));
+
+		mockMvc.perform(get("/api/posts")
+				.param("page", "-1")
+				.param("size", "10"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.message").value("Page must be zero or positive."));
+	}
+
+	@Test
+	void 페이지_크기가_유효하지_않으면_400을_반환한다() throws Exception {
+		when(postListApiService.getList(0, 0))
+			.thenThrow(new IllegalArgumentException("Page size must be at least 1."));
+
+		mockMvc.perform(get("/api/posts")
+				.param("page", "0")
+				.param("size", "0"))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.message").value("Page size must be at least 1."));
 	}
 
 	@Test

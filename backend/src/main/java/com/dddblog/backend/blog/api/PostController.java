@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
+import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestController;
 
@@ -19,10 +20,16 @@ public class PostController {
 
 	private final PostApiService postApiService;
 	private final PostDetailApiService postDetailApiService;
+	private final PostListApiService postListApiService;
 
-	public PostController(PostApiService postApiService, PostDetailApiService postDetailApiService) {
+	public PostController(
+		PostApiService postApiService,
+		PostDetailApiService postDetailApiService,
+		PostListApiService postListApiService
+	) {
 		this.postApiService = postApiService;
 		this.postDetailApiService = postDetailApiService;
+		this.postListApiService = postListApiService;
 	}
 
 	@PostMapping
@@ -40,5 +47,13 @@ public class PostController {
 	@GetMapping("/{postId}")
 	public PostDetailResponse getDetail(@PathVariable Long postId) {
 		return postDetailApiService.getDetail(postId);
+	}
+
+	@GetMapping
+	public PostListResponse getList(
+		@RequestParam(required = false) Integer page,
+		@RequestParam(required = false) Integer size
+	) {
+		return postListApiService.getList(page, size);
 	}
 }
