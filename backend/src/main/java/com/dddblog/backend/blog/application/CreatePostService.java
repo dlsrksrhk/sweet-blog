@@ -26,6 +26,7 @@ public class CreatePostService {
 			new AuthorId(command.authorId()),
 			new PostTitle(command.title()),
 			new PostContent(command.content()),
+			command.contentType(),
 			new PostSummary(command.summary()),
 			toTagNames(command.tags()),
 			command.status()

@@ -8,6 +8,7 @@ import java.util.List;
 import org.junit.jupiter.api.Test;
 
 import com.dddblog.backend.blog.domain.Post;
+import com.dddblog.backend.blog.domain.PostContentType;
 import com.dddblog.backend.blog.domain.PostId;
 import com.dddblog.backend.blog.domain.PostStatus;
 
@@ -20,6 +21,7 @@ class CreatePostServiceTest {
 		CreatePostCommand command = new CreatePostCommand(
 			1L,
 			"DDD 시작하기",
+			PostContentType.MARKDOWN,
 			"# DDD\n\n본문",
 			"DDD 소개",
 			List.of("ddd", "tdd"),
@@ -39,6 +41,7 @@ class CreatePostServiceTest {
 		CreatePostCommand command = new CreatePostCommand(
 			1L,
 			"DDD 시작하기",
+			PostContentType.MARKDOWN,
 			"# DDD\n\n본문",
 			"DDD 소개",
 			List.of("DDD", "TDD"),
@@ -50,6 +53,7 @@ class CreatePostServiceTest {
 		Post savedPost = postRepository.savedPosts().get(0);
 		assertThat(savedPost.authorId().value()).isEqualTo(1L);
 		assertThat(savedPost.title().value()).isEqualTo("DDD 시작하기");
+		assertThat(savedPost.contentType()).isEqualTo(PostContentType.MARKDOWN);
 		assertThat(savedPost.content().value()).isEqualTo("# DDD\n\n본문");
 		assertThat(savedPost.summary().value()).isEqualTo("DDD 소개");
 		assertThat(savedPost.tags()).extracting(tag -> tag.value()).containsExactly("ddd", "tdd");
@@ -63,6 +67,7 @@ class CreatePostServiceTest {
 		CreatePostCommand command = new CreatePostCommand(
 			1L,
 			"DDD 시작하기",
+			PostContentType.MARKDOWN,
 			"본문",
 			null,
 			List.of(),
@@ -81,6 +86,7 @@ class CreatePostServiceTest {
 		CreatePostCommand command = new CreatePostCommand(
 			1L,
 			"DDD 시작하기",
+			PostContentType.MARKDOWN,
 			"본문",
 			"요약",
 			null,
@@ -99,6 +105,7 @@ class CreatePostServiceTest {
 		CreatePostCommand command = new CreatePostCommand(
 			1L,
 			"DDD 시작하기",
+			PostContentType.MARKDOWN,
 			"본문",
 			"요약",
 			List.of("tag1", "tag2", "tag3", "tag4", "tag5", "tag6", "tag7", "tag8", "tag9", "tag10", "tag11"),
@@ -118,6 +125,7 @@ class CreatePostServiceTest {
 		CreatePostCommand command = new CreatePostCommand(
 			1L,
 			"DDD 시작하기",
+			PostContentType.MARKDOWN,
 			"본문",
 			"요약",
 			List.of("Java", "java"),
@@ -137,6 +145,7 @@ class CreatePostServiceTest {
 		CreatePostCommand command = new CreatePostCommand(
 			1L,
 			"   ",
+			PostContentType.MARKDOWN,
 			"본문",
 			"요약",
 			List.of(),
@@ -156,6 +165,7 @@ class CreatePostServiceTest {
 		CreatePostCommand command = new CreatePostCommand(
 			1L,
 			"DDD 시작하기",
+			PostContentType.MARKDOWN,
 			"   ",
 			"요약",
 			List.of(),

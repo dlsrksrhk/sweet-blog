@@ -17,11 +17,12 @@ class PostTest {
 		PostSummary summary = new PostSummary("DDD 소개");
 		List<TagName> tags = List.of(new TagName("ddd"), new TagName("tdd"));
 
-		Post post = new Post(authorId, title, content, summary, tags, PostStatus.DRAFT);
+		Post post = new Post(authorId, title, content, PostContentType.MARKDOWN, summary, tags, PostStatus.DRAFT);
 
 		assertThat(post.authorId()).isEqualTo(authorId);
 		assertThat(post.title()).isEqualTo(title);
 		assertThat(post.content()).isEqualTo(content);
+		assertThat(post.contentType()).isEqualTo(PostContentType.MARKDOWN);
 		assertThat(post.summary()).isEqualTo(summary);
 		assertThat(post.tags()).containsExactlyElementsOf(tags);
 		assertThat(post.status()).isEqualTo(PostStatus.DRAFT);
@@ -33,6 +34,7 @@ class PostTest {
 			null,
 			new PostTitle("DDD 시작하기"),
 			new PostContent("본문"),
+			PostContentType.MARKDOWN,
 			new PostSummary("요약"),
 			List.of(),
 			PostStatus.DRAFT
@@ -47,6 +49,7 @@ class PostTest {
 			new AuthorId(1L),
 			null,
 			new PostContent("본문"),
+			PostContentType.MARKDOWN,
 			new PostSummary("요약"),
 			List.of(),
 			PostStatus.DRAFT
@@ -61,6 +64,7 @@ class PostTest {
 			new AuthorId(1L),
 			new PostTitle("DDD 시작하기"),
 			null,
+			PostContentType.MARKDOWN,
 			new PostSummary("요약"),
 			List.of(),
 			PostStatus.DRAFT
@@ -75,6 +79,7 @@ class PostTest {
 			new AuthorId(1L),
 			new PostTitle("DDD 시작하기"),
 			new PostContent("본문"),
+			PostContentType.MARKDOWN,
 			new PostSummary("요약"),
 			List.of(),
 			null
@@ -89,6 +94,7 @@ class PostTest {
 			new AuthorId(1L),
 			new PostTitle("DDD 시작하기"),
 			new PostContent("본문"),
+			PostContentType.MARKDOWN,
 			null,
 			List.of(),
 			PostStatus.DRAFT
@@ -103,6 +109,7 @@ class PostTest {
 			new AuthorId(1L),
 			new PostTitle("DDD 시작하기"),
 			new PostContent("본문"),
+			PostContentType.MARKDOWN,
 			new PostSummary("요약"),
 			null,
 			PostStatus.DRAFT
@@ -130,6 +137,7 @@ class PostTest {
 			new AuthorId(1L),
 			new PostTitle("DDD 시작하기"),
 			new PostContent("본문"),
+			PostContentType.MARKDOWN,
 			new PostSummary("요약"),
 			tags,
 			PostStatus.DRAFT
@@ -158,6 +166,7 @@ class PostTest {
 			new AuthorId(1L),
 			new PostTitle("DDD 시작하기"),
 			new PostContent("본문"),
+			PostContentType.MARKDOWN,
 			new PostSummary("요약"),
 			tags,
 			PostStatus.DRAFT
@@ -174,6 +183,7 @@ class PostTest {
 			new AuthorId(1L),
 			new PostTitle("DDD 시작하기"),
 			new PostContent("본문"),
+			PostContentType.MARKDOWN,
 			new PostSummary("요약"),
 			tags,
 			PostStatus.DRAFT
@@ -192,6 +202,7 @@ class PostTest {
 			new AuthorId(1L),
 			new PostTitle("DDD 시작하기"),
 			new PostContent("본문"),
+			PostContentType.MARKDOWN,
 			new PostSummary("요약"),
 			tags,
 			PostStatus.DRAFT
@@ -206,6 +217,7 @@ class PostTest {
 			new AuthorId(1L),
 			new PostTitle("DDD 시작하기"),
 			new PostContent("본문"),
+			PostContentType.MARKDOWN,
 			new PostSummary("요약"),
 			List.of(new TagName("ddd")),
 			PostStatus.DRAFT
@@ -213,5 +225,35 @@ class PostTest {
 
 		assertThatThrownBy(() -> post.tags().add(new TagName("tdd")))
 			.isInstanceOf(UnsupportedOperationException.class);
+	}
+
+	@Test
+	void 글을_생성하면_본문_형식을_가진다() {
+		Post post = new Post(
+			new AuthorId(1L),
+			new PostTitle("DDD 시작하기"),
+			new PostContent("본문"),
+			PostContentType.MARKDOWN,
+			new PostSummary("요약"),
+			List.of(),
+			PostStatus.DRAFT
+		);
+
+		assertThat(post.contentType()).isEqualTo(PostContentType.MARKDOWN);
+	}
+
+	@Test
+	void 본문_형식이_null이면_글을_생성할_수_없다() {
+		assertThatThrownBy(() -> new Post(
+			new AuthorId(1L),
+			new PostTitle("DDD 시작하기"),
+			new PostContent("본문"),
+			null,
+			new PostSummary("요약"),
+			List.of(),
+			PostStatus.DRAFT
+		))
+			.isInstanceOf(IllegalArgumentException.class)
+			.hasMessage("Post content type must not be null.");
 	}
 }

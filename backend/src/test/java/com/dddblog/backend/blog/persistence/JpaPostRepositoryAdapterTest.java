@@ -15,6 +15,7 @@ import org.springframework.context.annotation.Import;
 import com.dddblog.backend.blog.domain.AuthorId;
 import com.dddblog.backend.blog.domain.Post;
 import com.dddblog.backend.blog.domain.PostContent;
+import com.dddblog.backend.blog.domain.PostContentType;
 import com.dddblog.backend.blog.domain.PostId;
 import com.dddblog.backend.blog.domain.PostStatus;
 import com.dddblog.backend.blog.domain.PostSummary;
@@ -74,6 +75,7 @@ class JpaPostRepositoryAdapterTest extends MysqlDataJpaTestSupport {
 			new AuthorId(2L),
 			new PostTitle("JPA 시작하기"),
 			new PostContent("JPA 본문"),
+			PostContentType.MARKDOWN,
 			new PostSummary("JPA 소개"),
 			List.of(new TagName("DDD")),
 			PostStatus.PUBLISHED
@@ -101,6 +103,7 @@ class JpaPostRepositoryAdapterTest extends MysqlDataJpaTestSupport {
 			new AuthorId(1L),
 			new PostTitle("DDD 시작하기"),
 			new PostContent("# DDD\n\n본문"),
+			PostContentType.MARKDOWN,
 			new PostSummary("DDD 소개"),
 			List.of(new TagName("ddd"), new TagName("tdd")),
 			PostStatus.DRAFT

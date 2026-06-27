@@ -10,6 +10,7 @@ public final class Post {
 	private final AuthorId authorId;
 	private final PostTitle title;
 	private final PostContent content;
+	private final PostContentType contentType;
 	private final PostSummary summary;
 	private final List<TagName> tags;
 	private final PostStatus status;
@@ -18,6 +19,7 @@ public final class Post {
 		AuthorId authorId,
 		PostTitle title,
 		PostContent content,
+		PostContentType contentType,
 		PostSummary summary,
 		List<TagName> tags,
 		PostStatus status
@@ -31,6 +33,9 @@ public final class Post {
 		if (content == null) {
 			throw new IllegalArgumentException("Post content must not be null.");
 		}
+		if (contentType == null) {
+			throw new IllegalArgumentException("Post content type must not be null.");
+		}
 		if (status == null) {
 			throw new IllegalArgumentException("Post status must not be null.");
 		}
@@ -41,6 +46,7 @@ public final class Post {
 		this.authorId = authorId;
 		this.title = title;
 		this.content = content;
+		this.contentType = contentType;
 		this.summary = summary == null ? new PostSummary(null) : summary;
 		this.tags = copiedTags;
 		this.status = status;
@@ -73,6 +79,10 @@ public final class Post {
 
 	public PostContent content() {
 		return content;
+	}
+
+	public PostContentType contentType() {
+		return contentType;
 	}
 
 	public PostSummary summary() {
