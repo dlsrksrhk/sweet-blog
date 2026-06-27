@@ -2,6 +2,7 @@ package com.dddblog.backend.blog.persistence;
 
 import static org.assertj.core.api.Assertions.assertThat;
 
+import java.time.Instant;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -27,6 +28,8 @@ import com.dddblog.backend.support.MysqlDataJpaTestSupport;
 @AutoConfigureTestDatabase(replace = AutoConfigureTestDatabase.Replace.NONE)
 @Import({JpaPostRepositoryAdapter.class, JpaPostDetailQueryRepositoryAdapter.class})
 class JpaPostDetailQueryRepositoryAdapterTest extends MysqlDataJpaTestSupport {
+
+	private static final Instant TIMESTAMP = Instant.parse("2026-06-27T10:15:30Z");
 
 	@Autowired
 	private JpaPostRepositoryAdapter postRepository;
@@ -82,7 +85,10 @@ class JpaPostDetailQueryRepositoryAdapterTest extends MysqlDataJpaTestSupport {
 			PostContentType.MARKDOWN,
 			new PostSummary("DDD 소개"),
 			List.of(new TagName("tdd"), new TagName("ddd")),
-			PostStatus.PUBLISHED
+			PostStatus.PUBLISHED,
+			TIMESTAMP,
+			TIMESTAMP,
+			TIMESTAMP
 		);
 		PostId postId = postRepository.save(post);
 		entityManager.flush();
@@ -101,7 +107,10 @@ class JpaPostDetailQueryRepositoryAdapterTest extends MysqlDataJpaTestSupport {
 			PostContentType.MARKDOWN,
 			new PostSummary("DDD 소개"),
 			List.of(new TagName("ddd"), new TagName("tdd")),
-			status
+			status,
+			TIMESTAMP,
+			TIMESTAMP,
+			status == PostStatus.PUBLISHED ? TIMESTAMP : null
 		);
 	}
 }

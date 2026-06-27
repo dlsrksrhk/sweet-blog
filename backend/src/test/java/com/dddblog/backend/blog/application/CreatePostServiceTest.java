@@ -3,6 +3,9 @@ package com.dddblog.backend.blog.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -14,10 +17,13 @@ import com.dddblog.backend.blog.domain.PostStatus;
 
 class CreatePostServiceTest {
 
+	private static final Instant NOW = Instant.parse("2026-06-27T10:15:30Z");
+	private static final Clock CLOCK = Clock.fixed(NOW, ZoneOffset.UTC);
+
 	@Test
 	void 유효한_요청이면_글을_저장하고_ID를_반환한다() {
 		FakePostRepository postRepository = new FakePostRepository();
-		CreatePostService service = new CreatePostService(postRepository);
+		CreatePostService service = new CreatePostService(postRepository, CLOCK);
 		CreatePostCommand command = new CreatePostCommand(
 			1L,
 			"DDD 시작하기",
@@ -37,7 +43,7 @@ class CreatePostServiceTest {
 	@Test
 	void 저장된_글은_요청_값을_도메인_값으로_가진다() {
 		FakePostRepository postRepository = new FakePostRepository();
-		CreatePostService service = new CreatePostService(postRepository);
+		CreatePostService service = new CreatePostService(postRepository, CLOCK);
 		CreatePostCommand command = new CreatePostCommand(
 			1L,
 			"DDD 시작하기",
@@ -63,7 +69,7 @@ class CreatePostServiceTest {
 	@Test
 	void 요약이_null이면_빈_요약으로_저장한다() {
 		FakePostRepository postRepository = new FakePostRepository();
-		CreatePostService service = new CreatePostService(postRepository);
+		CreatePostService service = new CreatePostService(postRepository, CLOCK);
 		CreatePostCommand command = new CreatePostCommand(
 			1L,
 			"DDD 시작하기",
@@ -82,7 +88,7 @@ class CreatePostServiceTest {
 	@Test
 	void 태그_목록이_null이면_빈_태그_목록으로_저장한다() {
 		FakePostRepository postRepository = new FakePostRepository();
-		CreatePostService service = new CreatePostService(postRepository);
+		CreatePostService service = new CreatePostService(postRepository, CLOCK);
 		CreatePostCommand command = new CreatePostCommand(
 			1L,
 			"DDD 시작하기",
@@ -101,7 +107,7 @@ class CreatePostServiceTest {
 	@Test
 	void 태그가_10개를_초과하면_저장하지_않는다() {
 		FakePostRepository postRepository = new FakePostRepository();
-		CreatePostService service = new CreatePostService(postRepository);
+		CreatePostService service = new CreatePostService(postRepository, CLOCK);
 		CreatePostCommand command = new CreatePostCommand(
 			1L,
 			"DDD 시작하기",
@@ -121,7 +127,7 @@ class CreatePostServiceTest {
 	@Test
 	void 중복된_태그가_있으면_저장하지_않는다() {
 		FakePostRepository postRepository = new FakePostRepository();
-		CreatePostService service = new CreatePostService(postRepository);
+		CreatePostService service = new CreatePostService(postRepository, CLOCK);
 		CreatePostCommand command = new CreatePostCommand(
 			1L,
 			"DDD 시작하기",
@@ -141,7 +147,7 @@ class CreatePostServiceTest {
 	@Test
 	void 제목이_blank이면_저장하지_않는다() {
 		FakePostRepository postRepository = new FakePostRepository();
-		CreatePostService service = new CreatePostService(postRepository);
+		CreatePostService service = new CreatePostService(postRepository, CLOCK);
 		CreatePostCommand command = new CreatePostCommand(
 			1L,
 			"   ",
@@ -161,7 +167,7 @@ class CreatePostServiceTest {
 	@Test
 	void 본문이_blank이면_저장하지_않는다() {
 		FakePostRepository postRepository = new FakePostRepository();
-		CreatePostService service = new CreatePostService(postRepository);
+		CreatePostService service = new CreatePostService(postRepository, CLOCK);
 		CreatePostCommand command = new CreatePostCommand(
 			1L,
 			"DDD 시작하기",
@@ -181,11 +187,70 @@ class CreatePostServiceTest {
 	@Test
 	void command가_null이면_저장하지_않는다() {
 		FakePostRepository postRepository = new FakePostRepository();
-		CreatePostService service = new CreatePostService(postRepository);
+		CreatePostService service = new CreatePostService(postRepository, CLOCK);
 
 		assertThatThrownBy(() -> service.create(null))
 			.isInstanceOf(IllegalArgumentException.class)
 			.hasMessage("Create post command must not be null.");
 		assertThat(postRepository.savedPosts()).isEmpty();
+	}
+
+	@Test
+	void 글을_생성하면_현재_시각을_작성일과_수정일로_저장한다() {
+		FakePostRepository postRepository = new FakePostRepository();
+		CreatePostService service = new CreatePostService(postRepository, CLOCK);
+		CreatePostCommand command = new CreatePostCommand(
+			1L,
+			"DDD 시작하기",
+			PostContentType.MARKDOWN,
+			"본문",
+			"요약",
+			List.of(),
+			PostStatus.DRAFT
+		);
+
+		service.create(command);
+
+		Post savedPost = postRepository.savedPosts().get(0);
+		assertThat(savedPost.createdAt()).isEqualTo(NOW);
+		assertThat(savedPost.updatedAt()).isEqualTo(NOW);
+	}
+
+	@Test
+	void 공개_글을_생성하면_현재_시각을_발행일로_저장한다() {
+		FakePostRepository postRepository = new FakePostRepository();
+		CreatePostService service = new CreatePostService(postRepository, CLOCK);
+		CreatePostCommand command = new CreatePostCommand(
+			1L,
+			"DDD 시작하기",
+			PostContentType.MARKDOWN,
+			"본문",
+			"요약",
+			List.of(),
+			PostStatus.PUBLISHED
+		);
+
+		service.create(command);
+
+		assertThat(postRepository.savedPosts().get(0).publishedAt()).isEqualTo(NOW);
+	}
+
+	@Test
+	void 임시_저장_글을_생성하면_발행일을_저장하지_않는다() {
+		FakePostRepository postRepository = new FakePostRepository();
+		CreatePostService service = new CreatePostService(postRepository, CLOCK);
+		CreatePostCommand command = new CreatePostCommand(
+			1L,
+			"DDD 시작하기",
+			PostContentType.MARKDOWN,
+			"본문",
+			"요약",
+			List.of(),
+			PostStatus.DRAFT
+		);
+
+		service.create(command);
+
+		assertThat(postRepository.savedPosts().get(0).publishedAt()).isNull();
 	}
 }

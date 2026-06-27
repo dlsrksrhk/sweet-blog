@@ -3,6 +3,9 @@ package com.dddblog.backend.blog.api;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.time.Clock;
+import java.time.Instant;
+import java.time.ZoneOffset;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -16,10 +19,12 @@ import com.dddblog.backend.member.domain.MemberId;
 
 class PostApiServiceTest {
 
+	private static final Clock CLOCK = Clock.fixed(Instant.parse("2026-06-27T10:15:30Z"), ZoneOffset.UTC);
+
 	@Test
 	void 글_작성_요청을_애플리케이션_서비스에_전달한다() {
 		FakePostRepository postRepository = new FakePostRepository();
-		PostApiService postApiService = new PostApiService(new CreatePostService(postRepository));
+		PostApiService postApiService = new PostApiService(new CreatePostService(postRepository, CLOCK));
 		PostRequest request = new PostRequest(
 			"DDD 시작하기",
 			PostContentType.MARKDOWN,
@@ -45,7 +50,7 @@ class PostApiServiceTest {
 	@Test
 	void HTML_본문_형식이면_글을_생성할_수_없다() {
 		FakePostRepository postRepository = new FakePostRepository();
-		PostApiService postApiService = new PostApiService(new CreatePostService(postRepository));
+		PostApiService postApiService = new PostApiService(new CreatePostService(postRepository, CLOCK));
 		PostRequest request = new PostRequest(
 			"DDD 시작하기",
 			PostContentType.HTML,
@@ -64,7 +69,7 @@ class PostApiServiceTest {
 	@Test
 	void 본문_형식이_null이면_글을_생성할_수_없다() {
 		FakePostRepository postRepository = new FakePostRepository();
-		PostApiService postApiService = new PostApiService(new CreatePostService(postRepository));
+		PostApiService postApiService = new PostApiService(new CreatePostService(postRepository, CLOCK));
 		PostRequest request = new PostRequest(
 			"DDD 시작하기",
 			null,
