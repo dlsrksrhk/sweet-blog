@@ -99,6 +99,20 @@ class JpaPostListQueryRepositoryAdapterTest extends MysqlDataJpaTestSupport {
 	}
 
 	@Test
+	void 발행일이_같으면_글_ID_내림차순으로_조회한다() {
+		PostId firstId = postRepository.save(createPost("먼저 저장한 글", PostStatus.PUBLISHED, FIRST));
+		PostId secondId = postRepository.save(createPost("나중에 저장한 글", PostStatus.PUBLISHED, FIRST));
+		entityManager.flush();
+		entityManager.clear();
+
+		PostListPage page = postListQueryRepository.findPublished(new PostListQuery(0, 20));
+
+		assertThat(page.items())
+			.extracting(item -> item.postId().value())
+			.containsExactly(secondId.value(), firstId.value());
+	}
+
+	@Test
 	void 페이지와_크기를_적용해_조회한다() {
 		PostId firstId = postRepository.save(createPost("첫 번째 글", PostStatus.PUBLISHED, FIRST));
 		postRepository.save(createPost("두 번째 글", PostStatus.PUBLISHED, SECOND));
