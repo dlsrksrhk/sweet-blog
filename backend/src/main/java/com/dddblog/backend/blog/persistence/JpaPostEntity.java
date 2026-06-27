@@ -3,6 +3,7 @@ package com.dddblog.backend.blog.persistence;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
+import com.dddblog.backend.blog.domain.PostContentType;
 import com.dddblog.backend.blog.domain.PostStatus;
 
 import jakarta.persistence.Column;
@@ -32,6 +33,10 @@ class JpaPostEntity {
 	@Column(nullable = false, length = 100)
 	private String title;
 
+	@Enumerated(EnumType.STRING)
+	@Column(name = "content_type", nullable = false)
+	private PostContentType contentType;
+
 	@Column(name = "content_markdown", nullable = false, columnDefinition = "text")
 	private String contentMarkdown;
 
@@ -57,6 +62,7 @@ class JpaPostEntity {
 	JpaPostEntity(
 		Long authorId,
 		String title,
+		PostContentType contentType,
 		String contentMarkdown,
 		String summary,
 		PostStatus status,
@@ -64,6 +70,7 @@ class JpaPostEntity {
 	) {
 		this.authorId = authorId;
 		this.title = title;
+		this.contentType = contentType;
 		this.contentMarkdown = contentMarkdown;
 		this.summary = summary;
 		this.status = status;
@@ -80,6 +87,10 @@ class JpaPostEntity {
 
 	String title() {
 		return title;
+	}
+
+	PostContentType contentType() {
+		return contentType;
 	}
 
 	String contentMarkdown() {

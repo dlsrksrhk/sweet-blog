@@ -61,6 +61,7 @@ class JpaPostRepositoryAdapterTest extends MysqlDataJpaTestSupport {
 		JpaPostEntity savedPost = springDataPostRepository.findById(postId.value()).orElseThrow();
 		assertThat(savedPost.authorId()).isEqualTo(1L);
 		assertThat(savedPost.title()).isEqualTo("DDD 시작하기");
+		assertThat(savedPost.contentType()).isEqualTo(PostContentType.MARKDOWN);
 		assertThat(savedPost.contentMarkdown()).isEqualTo("# DDD\n\n본문");
 		assertThat(savedPost.summary()).isEqualTo("DDD 소개");
 		assertThat(savedPost.status()).isEqualTo(PostStatus.DRAFT);

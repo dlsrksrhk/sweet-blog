@@ -35,6 +35,7 @@ public class JpaPostRepositoryAdapter implements PostRepository {
 		JpaPostEntity entity = new JpaPostEntity(
 			post.authorId().value(),
 			post.title().value(),
+			post.contentType(),
 			post.content().value(),
 			post.summary().value(),
 			post.status(),
