@@ -1,5 +1,6 @@
 package com.dddblog.backend.blog.domain;
 
+import java.time.Instant;
 import java.util.HashSet;
 import java.util.List;
 
@@ -14,6 +15,9 @@ public final class Post {
 	private final PostSummary summary;
 	private final List<TagName> tags;
 	private final PostStatus status;
+	private final Instant createdAt;
+	private final Instant updatedAt;
+	private final Instant publishedAt;
 
 	public Post(
 		AuthorId authorId,
@@ -22,7 +26,10 @@ public final class Post {
 		PostContentType contentType,
 		PostSummary summary,
 		List<TagName> tags,
-		PostStatus status
+		PostStatus status,
+		Instant createdAt,
+		Instant updatedAt,
+		Instant publishedAt
 	) {
 		if (authorId == null) {
 			throw new IllegalArgumentException("Post author must not be null.");
@@ -39,6 +46,7 @@ public final class Post {
 		if (status == null) {
 			throw new IllegalArgumentException("Post status must not be null.");
 		}
+		validateTimestamps(status, createdAt, updatedAt, publishedAt);
 		List<TagName> copiedTags = copyTags(tags);
 		if (copiedTags.size() > MAX_TAG_COUNT) {
 			throw new IllegalArgumentException("Post tags must be 10 or less.");
@@ -50,6 +58,32 @@ public final class Post {
 		this.summary = summary == null ? new PostSummary(null) : summary;
 		this.tags = copiedTags;
 		this.status = status;
+		this.createdAt = createdAt;
+		this.updatedAt = updatedAt;
+		this.publishedAt = publishedAt;
+	}
+
+	private void validateTimestamps(
+		PostStatus status,
+		Instant createdAt,
+		Instant updatedAt,
+		Instant publishedAt
+	) {
+		if (createdAt == null) {
+			throw new IllegalArgumentException("Post created at must not be null.");
+		}
+		if (updatedAt == null) {
+			throw new IllegalArgumentException("Post updated at must not be null.");
+		}
+		if (updatedAt.isBefore(createdAt)) {
+			throw new IllegalArgumentException("Post updated at must not be before created at.");
+		}
+		if (status == PostStatus.PUBLISHED && publishedAt == null) {
+			throw new IllegalArgumentException("Post published at must not be null when published.");
+		}
+		if (publishedAt != null && publishedAt.isBefore(createdAt)) {
+			throw new IllegalArgumentException("Post published at must not be before created at.");
+		}
 	}
 
 	private List<TagName> copyTags(List<TagName> tags) {
@@ -95,5 +129,17 @@ public final class Post {
 
 	public PostStatus status() {
 		return status;
+	}
+
+	public Instant createdAt() {
+		return createdAt;
+	}
+
+	public Instant updatedAt() {
+		return updatedAt;
+	}
+
+	public Instant publishedAt() {
+		return publishedAt;
 	}
 }

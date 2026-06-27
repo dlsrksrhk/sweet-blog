@@ -3,11 +3,16 @@ package com.dddblog.backend.blog.domain;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.time.Instant;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
 
 class PostTest {
+
+	private static final Instant CREATED_AT = Instant.parse("2026-06-27T10:15:30Z");
+	private static final Instant UPDATED_AT = Instant.parse("2026-06-27T10:15:30Z");
+	private static final Instant PUBLISHED_AT = Instant.parse("2026-06-27T10:15:30Z");
 
 	@Test
 	void 글을_생성한다() {
@@ -17,7 +22,18 @@ class PostTest {
 		PostSummary summary = new PostSummary("DDD 소개");
 		List<TagName> tags = List.of(new TagName("ddd"), new TagName("tdd"));
 
-		Post post = new Post(authorId, title, content, PostContentType.MARKDOWN, summary, tags, PostStatus.DRAFT);
+		Post post = new Post(
+			authorId,
+			title,
+			content,
+			PostContentType.MARKDOWN,
+			summary,
+			tags,
+			PostStatus.DRAFT,
+			CREATED_AT,
+			UPDATED_AT,
+			null
+		);
 
 		assertThat(post.authorId()).isEqualTo(authorId);
 		assertThat(post.title()).isEqualTo(title);
@@ -26,6 +42,51 @@ class PostTest {
 		assertThat(post.summary()).isEqualTo(summary);
 		assertThat(post.tags()).containsExactlyElementsOf(tags);
 		assertThat(post.status()).isEqualTo(PostStatus.DRAFT);
+		assertThat(post.createdAt()).isEqualTo(CREATED_AT);
+		assertThat(post.updatedAt()).isEqualTo(UPDATED_AT);
+		assertThat(post.publishedAt()).isNull();
+	}
+
+	@Test
+	void 공개_글을_생성하면_발행일을_가진다() {
+		Post post = createPost(PostStatus.PUBLISHED, CREATED_AT, UPDATED_AT, PUBLISHED_AT);
+
+		assertThat(post.publishedAt()).isEqualTo(PUBLISHED_AT);
+	}
+
+	@Test
+	void 작성일이_null이면_생성할_수_없다() {
+		assertThatThrownBy(() -> createPost(PostStatus.DRAFT, null, UPDATED_AT, null))
+			.isInstanceOf(IllegalArgumentException.class)
+			.hasMessage("Post created at must not be null.");
+	}
+
+	@Test
+	void 수정일이_null이면_생성할_수_없다() {
+		assertThatThrownBy(() -> createPost(PostStatus.DRAFT, CREATED_AT, null, null))
+			.isInstanceOf(IllegalArgumentException.class)
+			.hasMessage("Post updated at must not be null.");
+	}
+
+	@Test
+	void 수정일이_작성일보다_이전이면_생성할_수_없다() {
+		assertThatThrownBy(() -> createPost(PostStatus.DRAFT, CREATED_AT, CREATED_AT.minusSeconds(1), null))
+			.isInstanceOf(IllegalArgumentException.class)
+			.hasMessage("Post updated at must not be before created at.");
+	}
+
+	@Test
+	void 공개_글의_발행일이_null이면_생성할_수_없다() {
+		assertThatThrownBy(() -> createPost(PostStatus.PUBLISHED, CREATED_AT, UPDATED_AT, null))
+			.isInstanceOf(IllegalArgumentException.class)
+			.hasMessage("Post published at must not be null when published.");
+	}
+
+	@Test
+	void 발행일이_작성일보다_이전이면_생성할_수_없다() {
+		assertThatThrownBy(() -> createPost(PostStatus.PUBLISHED, CREATED_AT, UPDATED_AT, CREATED_AT.minusSeconds(1)))
+			.isInstanceOf(IllegalArgumentException.class)
+			.hasMessage("Post published at must not be before created at.");
 	}
 
 	@Test
@@ -37,7 +98,10 @@ class PostTest {
 			PostContentType.MARKDOWN,
 			new PostSummary("요약"),
 			List.of(),
-			PostStatus.DRAFT
+			PostStatus.DRAFT,
+			CREATED_AT,
+			UPDATED_AT,
+			null
 		))
 			.isInstanceOf(IllegalArgumentException.class)
 			.hasMessage("Post author must not be null.");
@@ -52,7 +116,10 @@ class PostTest {
 			PostContentType.MARKDOWN,
 			new PostSummary("요약"),
 			List.of(),
-			PostStatus.DRAFT
+			PostStatus.DRAFT,
+			CREATED_AT,
+			UPDATED_AT,
+			null
 		))
 			.isInstanceOf(IllegalArgumentException.class)
 			.hasMessage("Post title must not be null.");
@@ -67,7 +134,10 @@ class PostTest {
 			PostContentType.MARKDOWN,
 			new PostSummary("요약"),
 			List.of(),
-			PostStatus.DRAFT
+			PostStatus.DRAFT,
+			CREATED_AT,
+			UPDATED_AT,
+			null
 		))
 			.isInstanceOf(IllegalArgumentException.class)
 			.hasMessage("Post content must not be null.");
@@ -82,6 +152,9 @@ class PostTest {
 			PostContentType.MARKDOWN,
 			new PostSummary("요약"),
 			List.of(),
+			null,
+			CREATED_AT,
+			UPDATED_AT,
 			null
 		))
 			.isInstanceOf(IllegalArgumentException.class)
@@ -97,7 +170,10 @@ class PostTest {
 			PostContentType.MARKDOWN,
 			null,
 			List.of(),
-			PostStatus.DRAFT
+			PostStatus.DRAFT,
+			CREATED_AT,
+			UPDATED_AT,
+			null
 		);
 
 		assertThat(post.summary().value()).isEmpty();
@@ -112,7 +188,10 @@ class PostTest {
 			PostContentType.MARKDOWN,
 			new PostSummary("요약"),
 			null,
-			PostStatus.DRAFT
+			PostStatus.DRAFT,
+			CREATED_AT,
+			UPDATED_AT,
+			null
 		);
 
 		assertThat(post.tags()).isEmpty();
@@ -140,7 +219,10 @@ class PostTest {
 			PostContentType.MARKDOWN,
 			new PostSummary("요약"),
 			tags,
-			PostStatus.DRAFT
+			PostStatus.DRAFT,
+			CREATED_AT,
+			UPDATED_AT,
+			null
 		);
 
 		assertThat(post.tags()).hasSize(10);
@@ -169,7 +251,10 @@ class PostTest {
 			PostContentType.MARKDOWN,
 			new PostSummary("요약"),
 			tags,
-			PostStatus.DRAFT
+			PostStatus.DRAFT,
+			CREATED_AT,
+			UPDATED_AT,
+			null
 		))
 			.isInstanceOf(IllegalArgumentException.class)
 			.hasMessage("Post tags must be 10 or less.");
@@ -186,7 +271,10 @@ class PostTest {
 			PostContentType.MARKDOWN,
 			new PostSummary("요약"),
 			tags,
-			PostStatus.DRAFT
+			PostStatus.DRAFT,
+			CREATED_AT,
+			UPDATED_AT,
+			null
 		))
 			.isInstanceOf(IllegalArgumentException.class)
 			.hasMessage("Post tags must not be duplicated.");
@@ -205,7 +293,10 @@ class PostTest {
 			PostContentType.MARKDOWN,
 			new PostSummary("요약"),
 			tags,
-			PostStatus.DRAFT
+			PostStatus.DRAFT,
+			CREATED_AT,
+			UPDATED_AT,
+			null
 		))
 			.isInstanceOf(IllegalArgumentException.class)
 			.hasMessage("Post tag must not be null.");
@@ -220,7 +311,10 @@ class PostTest {
 			PostContentType.MARKDOWN,
 			new PostSummary("요약"),
 			List.of(new TagName("ddd")),
-			PostStatus.DRAFT
+			PostStatus.DRAFT,
+			CREATED_AT,
+			UPDATED_AT,
+			null
 		);
 
 		assertThatThrownBy(() -> post.tags().add(new TagName("tdd")))
@@ -236,7 +330,10 @@ class PostTest {
 			PostContentType.MARKDOWN,
 			new PostSummary("요약"),
 			List.of(),
-			PostStatus.DRAFT
+			PostStatus.DRAFT,
+			CREATED_AT,
+			UPDATED_AT,
+			null
 		);
 
 		assertThat(post.contentType()).isEqualTo(PostContentType.MARKDOWN);
@@ -251,9 +348,27 @@ class PostTest {
 			null,
 			new PostSummary("요약"),
 			List.of(),
-			PostStatus.DRAFT
+			PostStatus.DRAFT,
+			CREATED_AT,
+			UPDATED_AT,
+			null
 		))
 			.isInstanceOf(IllegalArgumentException.class)
 			.hasMessage("Post content type must not be null.");
+	}
+
+	private Post createPost(PostStatus status, Instant createdAt, Instant updatedAt, Instant publishedAt) {
+		return new Post(
+			new AuthorId(1L),
+			new PostTitle("DDD 시작하기"),
+			new PostContent("본문"),
+			PostContentType.MARKDOWN,
+			new PostSummary("요약"),
+			List.of(),
+			status,
+			createdAt,
+			updatedAt,
+			publishedAt
+		);
 	}
 }
