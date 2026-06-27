@@ -28,7 +28,10 @@ public class PostDetailApiService {
 			postDetail.tags().stream()
 				.map(TagName::value)
 				.toList(),
-			postDetail.status()
+			postDetail.status(),
+			postDetail.createdAt(),
+			postDetail.updatedAt(),
+			postDetail.publishedAt()
 		);
 	}
 }

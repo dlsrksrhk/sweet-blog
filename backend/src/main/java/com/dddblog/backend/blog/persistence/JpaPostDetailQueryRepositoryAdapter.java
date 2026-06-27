@@ -42,7 +42,10 @@ public class JpaPostDetailQueryRepositoryAdapter implements PostDetailQueryRepos
 			new PostContent(entity.contentMarkdown()),
 			new PostSummary(entity.summary()),
 			toTagNames(entity),
-			entity.status()
+			entity.status(),
+			entity.createdAt(),
+			entity.updatedAt(),
+			entity.publishedAt()
 		);
 	}
 

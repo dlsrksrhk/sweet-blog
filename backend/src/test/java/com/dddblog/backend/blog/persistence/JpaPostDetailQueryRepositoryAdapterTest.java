@@ -55,6 +55,9 @@ class JpaPostDetailQueryRepositoryAdapterTest extends MysqlDataJpaTestSupport {
 		assertThat(postDetail.content().value()).isEqualTo("# DDD\n\n본문");
 		assertThat(postDetail.summary().value()).isEqualTo("DDD 소개");
 		assertThat(postDetail.status()).isEqualTo(PostStatus.PUBLISHED);
+		assertThat(postDetail.createdAt()).isEqualTo(TIMESTAMP);
+		assertThat(postDetail.updatedAt()).isEqualTo(TIMESTAMP);
+		assertThat(postDetail.publishedAt()).isEqualTo(TIMESTAMP);
 		assertThat(postDetail.tags()).extracting(TagName::value).containsExactly("ddd", "tdd");
 	}
 

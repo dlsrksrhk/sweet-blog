@@ -3,6 +3,7 @@ package com.dddblog.backend.blog.application;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.time.Instant;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -17,6 +18,8 @@ import com.dddblog.backend.blog.domain.PostTitle;
 import com.dddblog.backend.blog.domain.TagName;
 
 class PostDetailQueryServiceTest {
+
+	private static final Instant TIMESTAMP = Instant.parse("2026-06-27T10:15:30Z");
 
 	@Test
 	void 공개된_글_상세를_조회한다() {
@@ -59,7 +62,10 @@ class PostDetailQueryServiceTest {
 			new PostContent("# DDD\n\n본문"),
 			new PostSummary("DDD 소개"),
 			List.of(new TagName("ddd"), new TagName("tdd")),
-			PostStatus.PUBLISHED
+			PostStatus.PUBLISHED,
+			TIMESTAMP,
+			TIMESTAMP,
+			TIMESTAMP
 		);
 	}
 }

@@ -1,5 +1,6 @@
 package com.dddblog.backend.blog.application;
 
+import java.time.Instant;
 import java.util.List;
 
 import com.dddblog.backend.blog.domain.AuthorId;
@@ -19,7 +20,10 @@ public record PostDetail(
 	PostContent content,
 	PostSummary summary,
 	List<TagName> tags,
-	PostStatus status
+	PostStatus status,
+	Instant createdAt,
+	Instant updatedAt,
+	Instant publishedAt
 ) {
 
 	public PostDetail {
@@ -49,6 +53,15 @@ public record PostDetail(
 		}
 		if (status == null) {
 			throw new IllegalArgumentException("Post status must not be null.");
+		}
+		if (createdAt == null) {
+			throw new IllegalArgumentException("Post created at must not be null.");
+		}
+		if (updatedAt == null) {
+			throw new IllegalArgumentException("Post updated at must not be null.");
+		}
+		if (publishedAt == null) {
+			throw new IllegalArgumentException("Post published at must not be null.");
 		}
 		tags = List.copyOf(tags);
 	}

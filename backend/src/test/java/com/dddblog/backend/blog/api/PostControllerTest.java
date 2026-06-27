@@ -11,6 +11,7 @@ import static org.springframework.test.web.servlet.request.MockMvcRequestBuilder
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
 
+import java.time.Instant;
 import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
@@ -42,6 +43,8 @@ import jakarta.servlet.ServletResponse;
 @WebMvcTest(PostController.class)
 @Import({GlobalExceptionHandler.class, SecurityConfig.class, JwtAuthenticationEntryPoint.class})
 class PostControllerTest {
+
+	private static final Instant TIMESTAMP = Instant.parse("2026-06-27T10:15:30Z");
 
 	@Autowired
 	private MockMvc mockMvc;
@@ -202,7 +205,10 @@ class PostControllerTest {
 				"# DDD\n\n본문",
 				"DDD 소개",
 				List.of("ddd", "tdd"),
-				PostStatus.PUBLISHED
+				PostStatus.PUBLISHED,
+				TIMESTAMP,
+				TIMESTAMP,
+				TIMESTAMP
 			));
 
 		mockMvc.perform(get("/api/posts/{postId}", 10L))
@@ -215,7 +221,10 @@ class PostControllerTest {
 			.andExpect(jsonPath("$.summary").value("DDD 소개"))
 			.andExpect(jsonPath("$.tags[0]").value("ddd"))
 			.andExpect(jsonPath("$.tags[1]").value("tdd"))
-			.andExpect(jsonPath("$.status").value("PUBLISHED"));
+			.andExpect(jsonPath("$.status").value("PUBLISHED"))
+			.andExpect(jsonPath("$.createdAt").value("2026-06-27T10:15:30Z"))
+			.andExpect(jsonPath("$.updatedAt").value("2026-06-27T10:15:30Z"))
+			.andExpect(jsonPath("$.publishedAt").value("2026-06-27T10:15:30Z"));
 	}
 
 	@Test
@@ -229,7 +238,10 @@ class PostControllerTest {
 				"# DDD\n\n본문",
 				"DDD 소개",
 				List.of("ddd", "tdd"),
-				PostStatus.PUBLISHED
+				PostStatus.PUBLISHED,
+				TIMESTAMP,
+				TIMESTAMP,
+				TIMESTAMP
 			));
 
 		mockMvc.perform(get("/api/posts/{postId}", 10L))

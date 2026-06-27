@@ -1,5 +1,6 @@
 package com.dddblog.backend.blog.api;
 
+import java.time.Instant;
 import java.util.List;
 
 import com.dddblog.backend.blog.domain.PostContentType;
@@ -13,6 +14,9 @@ public record PostDetailResponse(
 	String content,
 	String summary,
 	List<String> tags,
-	PostStatus status
+	PostStatus status,
+	Instant createdAt,
+	Instant updatedAt,
+	Instant publishedAt
 ) {
 }

@@ -39,6 +39,9 @@ public class JpaPostRepositoryAdapter implements PostRepository {
 			post.content().value(),
 			post.summary().value(),
 			post.status(),
+			post.createdAt(),
+			post.updatedAt(),
+			post.publishedAt(),
 			tags
 		);
 		JpaPostEntity savedEntity = postRepository.save(entity);

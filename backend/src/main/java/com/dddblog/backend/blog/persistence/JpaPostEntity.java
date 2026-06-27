@@ -1,5 +1,6 @@
 package com.dddblog.backend.blog.persistence;
 
+import java.time.Instant;
 import java.util.LinkedHashSet;
 import java.util.Set;
 
@@ -47,6 +48,15 @@ class JpaPostEntity {
 	@Column(nullable = false)
 	private PostStatus status;
 
+	@Column(name = "created_at", nullable = false)
+	private Instant createdAt;
+
+	@Column(name = "updated_at", nullable = false)
+	private Instant updatedAt;
+
+	@Column(name = "published_at")
+	private Instant publishedAt;
+
 	@ManyToMany
 	@JoinTable(
 		name = "post_tags",
@@ -66,6 +76,9 @@ class JpaPostEntity {
 		String contentMarkdown,
 		String summary,
 		PostStatus status,
+		Instant createdAt,
+		Instant updatedAt,
+		Instant publishedAt,
 		Set<JpaTagEntity> tags
 	) {
 		this.authorId = authorId;
@@ -74,6 +87,9 @@ class JpaPostEntity {
 		this.contentMarkdown = contentMarkdown;
 		this.summary = summary;
 		this.status = status;
+		this.createdAt = createdAt;
+		this.updatedAt = updatedAt;
+		this.publishedAt = publishedAt;
 		this.tags = new LinkedHashSet<>(tags);
 	}
 
@@ -103,6 +119,18 @@ class JpaPostEntity {
 
 	PostStatus status() {
 		return status;
+	}
+
+	Instant createdAt() {
+		return createdAt;
+	}
+
+	Instant updatedAt() {
+		return updatedAt;
+	}
+
+	Instant publishedAt() {
+		return publishedAt;
 	}
 
 	Set<JpaTagEntity> tags() {

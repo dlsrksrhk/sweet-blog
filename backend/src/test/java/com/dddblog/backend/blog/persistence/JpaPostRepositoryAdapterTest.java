@@ -68,6 +68,9 @@ class JpaPostRepositoryAdapterTest extends MysqlDataJpaTestSupport {
 		assertThat(savedPost.contentMarkdown()).isEqualTo("# DDD\n\n본문");
 		assertThat(savedPost.summary()).isEqualTo("DDD 소개");
 		assertThat(savedPost.status()).isEqualTo(PostStatus.DRAFT);
+		assertThat(savedPost.createdAt()).isEqualTo(TIMESTAMP);
+		assertThat(savedPost.updatedAt()).isEqualTo(TIMESTAMP);
+		assertThat(savedPost.publishedAt()).isNull();
 		assertThat(savedPost.tags()).extracting(JpaTagEntity::name).containsExactlyInAnyOrder("ddd", "tdd");
 	}
 

@@ -3,6 +3,7 @@ package com.dddblog.backend.blog.api;
 import static org.assertj.core.api.Assertions.assertThat;
 import static org.assertj.core.api.Assertions.assertThatThrownBy;
 
+import java.time.Instant;
 import java.util.List;
 
 import org.junit.jupiter.api.Test;
@@ -21,6 +22,8 @@ import com.dddblog.backend.blog.domain.TagName;
 
 class PostDetailApiServiceTest {
 
+	private static final Instant TIMESTAMP = Instant.parse("2026-06-27T10:15:30Z");
+
 	@Test
 	void 공개된_글_상세를_응답으로_변환한다() {
 		FakePostDetailQueryRepository postDetailQueryRepository = new FakePostDetailQueryRepository();
@@ -35,7 +38,10 @@ class PostDetailApiServiceTest {
 			new PostContent("# DDD\n\n본문"),
 			new PostSummary("DDD 소개"),
 			List.of(new TagName("ddd"), new TagName("tdd")),
-			PostStatus.PUBLISHED
+			PostStatus.PUBLISHED,
+			TIMESTAMP,
+			TIMESTAMP,
+			TIMESTAMP
 		));
 
 		PostDetailResponse response = postDetailApiService.getDetail(10L);
@@ -48,6 +54,9 @@ class PostDetailApiServiceTest {
 		assertThat(response.summary()).isEqualTo("DDD 소개");
 		assertThat(response.tags()).containsExactly("ddd", "tdd");
 		assertThat(response.status()).isEqualTo(PostStatus.PUBLISHED);
+		assertThat(response.createdAt()).isEqualTo(TIMESTAMP);
+		assertThat(response.updatedAt()).isEqualTo(TIMESTAMP);
+		assertThat(response.publishedAt()).isEqualTo(TIMESTAMP);
 	}
 
 	@Test
