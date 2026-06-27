@@ -8,6 +8,8 @@ import org.springframework.context.annotation.Configuration;
 import com.dddblog.backend.blog.application.CreatePostService;
 import com.dddblog.backend.blog.application.PostDetailQueryRepository;
 import com.dddblog.backend.blog.application.PostDetailQueryService;
+import com.dddblog.backend.blog.application.PostListQueryRepository;
+import com.dddblog.backend.blog.application.PostListQueryService;
 import com.dddblog.backend.blog.application.PostRepository;
 
 @Configuration
@@ -21,5 +23,10 @@ public class BlogApplicationConfig {
 	@Bean
 	PostDetailQueryService postDetailQueryService(PostDetailQueryRepository postDetailQueryRepository) {
 		return new PostDetailQueryService(postDetailQueryRepository);
+	}
+
+	@Bean
+	PostListQueryService postListQueryService(PostListQueryRepository postListQueryRepository) {
+		return new PostListQueryService(postListQueryRepository);
 	}
 }
