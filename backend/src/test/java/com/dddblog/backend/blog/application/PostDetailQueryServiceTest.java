@@ -26,7 +26,7 @@ class PostDetailQueryServiceTest {
 		FakePostDetailQueryRepository postDetailQueryRepository = new FakePostDetailQueryRepository();
 		PostDetailQueryService postDetailQueryService = new PostDetailQueryService(postDetailQueryRepository);
 		PostDetail postDetail = createPostDetail(new PostId(1L));
-		postDetailQueryRepository.저장한다(postDetail);
+		postDetailQueryRepository.save(postDetail);
 
 		PostDetail foundPostDetail = postDetailQueryService.getDetail(new PostId(1L));
 

@@ -30,7 +30,7 @@ class PostDetailApiServiceTest {
 		PostDetailApiService postDetailApiService = new PostDetailApiService(
 			new PostDetailQueryService(postDetailQueryRepository)
 		);
-		postDetailQueryRepository.저장한다(new PostDetail(
+		postDetailQueryRepository.save(new PostDetail(
 			new PostId(10L),
 			new AuthorId(1L),
 			new PostTitle("DDD 시작하기"),

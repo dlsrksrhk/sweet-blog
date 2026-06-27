@@ -15,7 +15,7 @@ public class FakePostDetailQueryRepository implements PostDetailQueryRepository 
 		return Optional.ofNullable(postDetails.get(postId));
 	}
 
-	public void 저장한다(PostDetail postDetail) {
+	public void save(PostDetail postDetail) {
 		postDetails.put(postDetail.postId(), postDetail);
 	}
 }
