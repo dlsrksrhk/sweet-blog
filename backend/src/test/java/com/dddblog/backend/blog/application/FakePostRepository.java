@@ -6,7 +6,7 @@ import java.util.List;
 import com.dddblog.backend.blog.domain.Post;
 import com.dddblog.backend.blog.domain.PostId;
 
-class FakePostRepository implements PostRepository {
+public class FakePostRepository implements PostRepository {
 
 	private final List<Post> savedPosts = new ArrayList<>();
 
@@ -16,7 +16,7 @@ class FakePostRepository implements PostRepository {
 		return new PostId((long) savedPosts.size());
 	}
 
-	List<Post> savedPosts() {
+	public List<Post> savedPosts() {
 		return List.copyOf(savedPosts);
 	}
 }
