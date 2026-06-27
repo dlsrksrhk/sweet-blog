@@ -16,6 +16,7 @@ import org.springframework.beans.factory.annotation.Autowired;
 import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
 import org.springframework.context.annotation.Import;
 import org.springframework.http.MediaType;
+import org.springframework.security.authentication.TestingAuthenticationToken;
 import org.springframework.test.context.bean.override.mockito.MockitoBean;
 import org.springframework.test.web.servlet.MockMvc;
 
@@ -88,8 +89,45 @@ class PostControllerTest {
 	}
 
 	@Test
+	void 요청_본문의_작성자_ID는_사용하지_않는다() throws Exception {
+		when(postApiService.create(eq(new MemberId(7L)), any(PostRequest.class)))
+			.thenReturn(new PostResponse(10L));
+
+		mockMvc.perform(post("/api/posts")
+				.with(authentication(new JwtAuthentication(
+					new AuthenticatedMember(new MemberId(7L), MemberRole.MEMBER)
+				)))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+					{
+					  "memberId": 999,
+					  "title": "DDD 시작하기",
+					  "contentType": "MARKDOWN",
+					  "content": "# DDD\\n\\n본문",
+					  "summary": "DDD 소개",
+					  "tags": ["ddd", "tdd"],
+					  "status": "DRAFT"
+					}
+					"""))
+			.andExpect(status().isCreated())
+			.andExpect(jsonPath("$.postId").value(10L));
+
+		verify(postApiService).create(eq(new MemberId(7L)), any(PostRequest.class));
+	}
+
+	@Test
 	void 토큰이_없으면_401을_반환한다() throws Exception {
 		mockMvc.perform(post("/api/posts")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(validJson()))
+			.andExpect(status().isUnauthorized())
+			.andExpect(jsonPath("$.message").value("Authentication failed."));
+	}
+
+	@Test
+	void 인증_주체가_회원이_아니면_401을_반환한다() throws Exception {
+		mockMvc.perform(post("/api/posts")
+				.with(authentication(new TestingAuthenticationToken("invalid", "", "ROLE_MEMBER")))
 				.contentType(MediaType.APPLICATION_JSON)
 				.content(validJson()))
 			.andExpect(status().isUnauthorized())
