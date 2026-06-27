@@ -1,6 +1,7 @@
 package com.dddblog.backend.blog.api;
 
 import static org.assertj.core.api.Assertions.assertThat;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
@@ -128,5 +129,74 @@ class PostApiIntegrationTest extends MysqlDataJpaTestSupport {
 		assertThat(contentMarkdown).isEqualTo("# DDD\n\n본문");
 		assertThat(status).isEqualTo("PUBLISHED");
 		assertThat(tagNames).containsExactly("ddd", "tdd");
+	}
+
+	@Test
+	void 회원가입_후_작성한_공개_글을_토큰_없이_상세_조회할_수_있다() throws Exception {
+		mockMvc.perform(post("/api/auth/signup")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+					{
+					  "name": "김철수",
+					  "nickname": "철수",
+					  "loginId": "user02",
+					  "password": "password123"
+					}
+					"""))
+			.andExpect(status().isCreated());
+
+		MvcResult loginResult = mockMvc.perform(post("/api/auth/login")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+					{
+					  "loginId": "user02",
+					  "password": "password123"
+					}
+					"""))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.accessToken").isString())
+			.andReturn();
+
+		String accessToken = objectMapper.readTree(loginResult.getResponse().getContentAsString())
+			.get("accessToken")
+			.asText();
+
+		MvcResult createPostResult = mockMvc.perform(post("/api/posts")
+				.header(HttpHeaders.AUTHORIZATION, "Bearer " + accessToken)
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+					{
+					  "title": "공개 글",
+					  "contentType": "MARKDOWN",
+					  "content": "# 공개 글\\n\\n본문",
+					  "summary": "공개 글 소개",
+					  "tags": ["TDD", "DDD"],
+					  "status": "PUBLISHED"
+					}
+					"""))
+			.andExpect(status().isCreated())
+			.andExpect(jsonPath("$.postId").isNumber())
+			.andReturn();
+
+		Long postId = objectMapper.readTree(createPostResult.getResponse().getContentAsString())
+			.get("postId")
+			.asLong();
+		Long memberId = jdbcTemplate.queryForObject(
+			"select id from members where login_id = ?",
+			Long.class,
+			"user02"
+		);
+
+		mockMvc.perform(get("/api/posts/{postId}", postId))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.postId").value(postId))
+			.andExpect(jsonPath("$.authorId").value(memberId))
+			.andExpect(jsonPath("$.title").value("공개 글"))
+			.andExpect(jsonPath("$.contentType").value("MARKDOWN"))
+			.andExpect(jsonPath("$.content").value("# 공개 글\n\n본문"))
+			.andExpect(jsonPath("$.summary").value("공개 글 소개"))
+			.andExpect(jsonPath("$.tags[0]").value("ddd"))
+			.andExpect(jsonPath("$.tags[1]").value("tdd"))
+			.andExpect(jsonPath("$.status").value("PUBLISHED"));
 	}
 }
