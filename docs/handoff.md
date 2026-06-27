@@ -8,8 +8,8 @@
 - Java for this project: `C:\java\jdk-21`
 - Spring Boot: `3.5.0`
 - Current branch: `master`
-- Latest completed backend slice: login and JWT authentication.
-- Latest completed commit: `b50892b fix: correct current member handoff behavior`
+- Latest completed backend slice: authenticated post creation API.
+- Latest completed backend slice commit: `e5c02a4 test: verify authenticated post creation flow`
 - Recent implementation commits are listed in Recent Commits.
 
 ## Project Rules
@@ -26,7 +26,7 @@ Important local rules:
 - Spring/JPA annotations are allowed in adapter, API, auth security, and config packages when explicitly designed.
 - Prefer TDD: write a small failing test first, then implement the minimum code to pass.
 - For new feature slices, use `superpowers:brainstorming`, write a Korean spec, then use `superpowers:writing-plans`.
-- There is no active feature worktree after the login/JWT branch was merged locally into `master`.
+- There is no active feature worktree after the authenticated post creation API branch was merged locally into `master` and pushed to `origin/master`.
 
 ## Implemented So Far
 
@@ -53,6 +53,8 @@ Important local rules:
 - `docs/superpowers/plans/2026-06-13-signup-api.md`
 - `docs/superpowers/specs/2026-06-17-login-jwt-auth-design.md`
 - `docs/superpowers/plans/2026-06-17-login-jwt-auth.md`
+- `docs/superpowers/specs/2026-06-27-authenticated-post-create-api-design.md`
+- `docs/superpowers/plans/2026-06-27-authenticated-post-create-api.md`
 
 ### Blog Domain Layer
 
@@ -67,6 +69,7 @@ Implemented:
 - `AuthorId`
 - `Post`
 - `PostContent`
+- `PostContentType`
 - `PostId`
 - `PostStatus`
 - `PostSummary`
@@ -78,6 +81,9 @@ Important blog domain behavior:
 - `Post` has no persistence ID field yet.
 - `PostId` is used as repository save result for now.
 - `Post` validates author/title/content/status.
+- `Post` validates content type.
+- `PostContentType` values are `MARKDOWN`, `HTML`.
+- `PostContentType.HTML` is represented in the domain for future expansion, but the current HTTP API rejects it.
 - `Post` normalizes null summary through `PostSummary`.
 - `Post` treats null tag list as empty.
 - `Post` rejects null tag elements.
@@ -304,13 +310,20 @@ Behavior:
 - It returns `PostId`.
 - Null command is rejected with `Create post command must not be null.`
 - Domain exceptions are not caught or translated.
+- `CreatePostCommand` fields are:
+  - `Long authorId`
+  - `String title`
+  - `PostContentType contentType`
+  - `String content`
+  - `String summary`
+  - `List<String> tags`
+  - `PostStatus status`
 
 Important wiring note:
 
 - `CreatePostService` is still a pure Java class.
 - It is not annotated with `@Service`.
-- There is not yet a Spring configuration that exposes `CreatePostService` as a bean.
-- A future API slice must decide how to wire it.
+- `backend/src/main/java/com/dddblog/backend/blog/config/BlogApplicationConfig.java` exposes it as a Spring bean for the API layer.
 
 ### Blog Persistence Layer
 
@@ -338,6 +351,7 @@ Behavior:
 - Existing tags are reused by `SpringDataJpaTagRepository.findByName(name)`.
 - New tags are created with `new JpaTagEntity(tagName.value())`.
 - It saves the post and returns `new PostId(savedEntity.id())`.
+- It persists `PostContentType` as `posts.content_type` with `EnumType.STRING`.
 
 Table mapping:
 
@@ -345,6 +359,7 @@ Table mapping:
   - `id`
   - `author_id`
   - `title`
+  - `content_type`
   - `content_markdown`
   - `summary`
   - `status`
@@ -364,7 +379,56 @@ Important blog persistence exclusions still true:
 - No auditing columns yet.
 - No soft delete/view count/published at/cover image persistence yet.
 - No Flyway/Liquibase yet.
+- No migration exists for `posts.content_type`; tests rely on Hibernate `ddl-auto=create-drop`.
 - Repository tests use MySQL Testcontainers instead of H2.
+
+### Blog API Behavior
+
+Package:
+
+```text
+backend/src/main/java/com/dddblog/backend/blog/api
+```
+
+Implemented:
+
+- `PostController`
+- `PostRequest`
+- `PostResponse`
+- `PostApiService`
+
+Behavior:
+
+- `POST /api/posts` requires JWT Bearer authentication.
+- Request body fields are:
+  - `title`
+  - `contentType`
+  - `content`
+  - `summary`
+  - `tags`
+  - `status`
+- Request body intentionally has no author/member ID field.
+- `PostController` derives the author from `@AuthenticationPrincipal AuthenticatedMember`.
+- If the authentication principal is missing or is not `AuthenticatedMember`, the API returns `401 { "message": "Authentication failed." }`.
+- `PostApiService` converts the authenticated `MemberId` plus `PostRequest` to `CreatePostCommand`.
+- The current API accepts only `contentType = MARKDOWN`.
+- `contentType = HTML` or `contentType = null` is rejected with `Post content type must be MARKDOWN.`
+- Successful creation returns `201 Created` with `{ "postId": ... }`.
+- `IllegalArgumentException` is returned as `400 Bad Request` through `GlobalExceptionHandler`.
+- Body-supplied `memberId` is ignored if a client sends one.
+
+Example request:
+
+```json
+{
+  "title": "DDD 시작하기",
+  "contentType": "MARKDOWN",
+  "content": "# DDD\n\n본문",
+  "summary": "DDD 소개",
+  "tags": ["ddd", "tdd"],
+  "status": "DRAFT"
+}
+```
 
 ### Member Persistence Layer
 
@@ -432,6 +496,7 @@ Implemented:
 - `backend/src/main/java/com/dddblog/backend/common/api/ErrorResponse.java`
 - `backend/src/main/java/com/dddblog/backend/config/PasswordConfig.java`
 - `backend/src/main/java/com/dddblog/backend/config/SecurityConfig.java`
+- `backend/src/main/java/com/dddblog/backend/blog/config/BlogApplicationConfig.java`
 - `backend/src/main/java/com/dddblog/backend/member/config/MemberApplicationConfig.java`
 
 Behavior:
@@ -440,6 +505,7 @@ Behavior:
 - `GlobalExceptionHandler` maps `AuthenticationFailedException` to `401 Unauthorized`.
 - Error body shape is `{ "message": "..." }`.
 - `PasswordConfig` provides a `BCryptPasswordEncoder`.
+- `BlogApplicationConfig` wires `CreatePostService` from pure application port `PostRepository`.
 - `MemberApplicationConfig` wires `RegisterMemberService` from pure application ports.
 - `SecurityConfig` permits unauthenticated signup and login.
 - `SecurityConfig` authenticates all other requests by default.
@@ -469,13 +535,14 @@ H2 was removed from test runtime dependencies during the Testcontainers migratio
 - No token reissue.
 - No server-side logout or blacklist.
 - No member update/delete API.
-- No post API integration with authenticated member yet.
 
 Additional exclusions still true:
 
 - No Flyway/Liquibase migration yet.
 - No relation/FK between `posts.author_id` and `members.id` yet.
 - No post read/update/delete API yet.
+- No HTML body acceptance or sanitize policy yet.
+- No cover image/image upload integration yet.
 
 ## Tests
 
@@ -533,6 +600,12 @@ Blog persistence tests:
 backend/src/test/java/com/dddblog/backend/blog/persistence
 ```
 
+Blog API tests:
+
+```text
+backend/src/test/java/com/dddblog/backend/blog/api
+```
+
 Member persistence tests:
 
 ```text
@@ -588,6 +661,20 @@ Login/auth test scenarios include:
 - Current-member API returns `401` for missing token, invalid Bearer token, non-member authentication principal, or missing authenticated member.
 - Vertical integration verifies signup, login, Bearer-token authentication, and `/api/members/me`.
 
+Authenticated post creation test scenarios include:
+
+- `PostApiService` maps authenticated member ID and request values into `CreatePostCommand`.
+- `PostApiService` rejects `HTML` content type with `Post content type must be MARKDOWN.`
+- `PostApiService` rejects null content type with `Post content type must be MARKDOWN.`
+- `PostController` returns `201 Created` and `postId` for authenticated requests.
+- `PostController` passes authenticated member ID as author ID.
+- `PostController` ignores body-supplied `memberId`.
+- `PostController` returns `401 { "message": "Authentication failed." }` for missing token.
+- `PostController` returns `401 { "message": "Authentication failed." }` for non-member authentication principal.
+- `PostController` returns `400` for `HTML` content type.
+- `PostController` returns `400` for domain input errors such as blank title.
+- Vertical integration verifies signup, login, Bearer-token post creation, and persisted post values.
+
 Important signup integration test detail:
 
 - The vertical integration test posts to `/api/auth/signup`.
@@ -604,6 +691,17 @@ Important auth integration test detail:
 - It calls `GET /api/members/me` with `Authorization: Bearer <accessToken>`.
 - It asserts the response contains member ID, name, nickname, login ID, and role.
 - It verifies invalid Bearer tokens return `401 { "message": "Authentication failed." }`.
+
+Important post creation integration test detail:
+
+- The vertical integration test signs up a member, logs in, then posts to `/api/posts`.
+- It asserts `201 Created`.
+- It asserts the response contains a numeric `postId`.
+- It verifies `posts.author_id` is the signed-up member ID.
+- It verifies `posts.content_type` is `MARKDOWN`.
+- It verifies `posts.content_markdown` stores the submitted body.
+- It verifies `posts.status` stores the submitted status.
+- It verifies tags are normalized and connected through `post_tags`.
 
 Important persistence test detail:
 
@@ -669,7 +767,21 @@ Expected: no output.
 
 ## Recent Commits
 
-Most relevant login/JWT implementation commits now merged into `master`:
+Most relevant authenticated post creation API commits now merged into `master` and pushed to `origin/master`:
+
+```text
+e5c02a4 test: verify authenticated post creation flow
+118e40e test: harden post controller auth behavior
+44ec85e feat: add post creation controller
+e880a49 feat: add post api service
+9f984d6 feat: configure blog application service
+60866fe feat: persist post content type
+98b5810 feat: add post content type
+4678bf4 docs: add authenticated post creation api plan
+d4d1d9e docs: add authenticated post creation api design
+```
+
+Earlier login/JWT implementation commits remain relevant background:
 
 ```text
 c524850 test: verify login jwt auth flow
@@ -709,45 +821,47 @@ ad51175 docs: add signup api design
 
 ## Recommended Next Step
 
-Recommended next milestone: authenticated post creation API.
+Recommended next milestone: post read API.
 
 ```text
-POST /api/posts
+GET /api/posts
+GET /api/posts/{postId}
 ```
 
 Why this is next:
 
-- The project requirements sequence after signup/login/JWT/current-member lookup is authenticated post creation.
-- Blog domain, `CreatePostService`, and `JpaPostRepositoryAdapter` already exist.
-- The new auth slice provides `AuthenticatedMember.memberId`, which can be converted to `AuthorId` for post creation.
-- This milestone will connect existing Blog application/persistence behavior to HTTP while exercising authorization identity flow.
+- The project requirements sequence after authenticated post creation is public post list/detail read.
+- `POST /api/posts` can now create persisted posts with author ID, content type, body, status, and tags.
+- A read slice will make the newly created content observable through HTTP.
+- Read behavior must decide how to handle `DRAFT`, `PUBLISHED`, and `HIDDEN` visibility.
 
 Suggested scope:
 
-- Brainstorm and write a spec for `POST /api/posts`.
-- Add a Spring configuration that exposes pure `CreatePostService` as a bean.
-- Add a thin API layer that accepts title, content Markdown, summary, tags, and status.
-- Derive author ID from `AuthenticatedMember`, not from request body.
-- Return `201 Created` with created post ID.
-- Keep image/cover image, post read APIs, update/delete APIs, publish workflows, and post/member FK out of this slice unless explicitly approved.
+- Brainstorm and write a spec for the first read slice.
+- Prefer a narrow first cut, likely public `GET /api/posts/{postId}` for `PUBLISHED` posts or public `GET /api/posts` list.
+- Decide whether to introduce a read repository/query model rather than stretching `PostRepository`, which is currently a write port.
+- Include author display needs carefully; there is no FK or cross-context read model yet.
+- Keep update/delete APIs, publish workflows, comments, media, view counts, and frontend work out of this slice unless explicitly approved.
 
 Do not start without a new task:
 
-- Refresh Token, token reissue, server-side logout/blacklist, member update/delete APIs, Flyway/Liquibase, post/member FK, post read/update/delete APIs, or frontend work.
+- Refresh Token, token reissue, server-side logout/blacklist, member update/delete APIs, Flyway/Liquibase, post/member FK, post update/delete APIs, HTML sanitize/acceptance, media upload, or frontend work.
 
 ## Notes For Next Agent
 
 - Start by reading this handoff.
-- Then read `docs/requirements.md`, `docs/superpowers/specs/2026-06-07-create-post-application-design.md`, and `docs/superpowers/plans/2026-06-07-create-post-application.md`.
+- Then read `docs/requirements.md`, `docs/superpowers/specs/2026-06-27-authenticated-post-create-api-design.md`, and `docs/superpowers/plans/2026-06-27-authenticated-post-create-api.md`.
 - Start a new feature slice from `master`.
-- Use `superpowers:brainstorming` before designing the authenticated post creation API.
-- Login/JWT auth slice implementation is merged into `master` as of commit `b50892b`.
+- Use `superpowers:brainstorming` before designing the next read/update/delete feature slice.
+- Authenticated post creation API is merged into `master` and pushed to `origin/master` as of commit `e5c02a4`.
 - Use `superpowers:finishing-a-development-branch` only when explicitly asked to finish the branch.
 - The user prefers Korean documentation and Korean test method names.
-- Preserve pure `member.domain` and `member.application` style.
+- Preserve pure `blog.domain`, `blog.application`, `member.domain`, and `member.application` style.
 - Do not add unrelated refactors or cleanup.
-- Current `master` includes the login/JWT implementation commits.
+- Current `master` includes the signup, login/JWT, current-member, and authenticated post creation implementation commits.
 - Be careful with helper method names under `backend/src/test/java`: the naming-rule command flags ASCII `void` methods in all test source files, including fakes.
 - Be careful not to reintroduce DB-generated member IDs. `members.id` is assigned from `Member.id()`.
 - Be careful not to use Spring Data `save(entity)` for create-only member persistence with assigned IDs; `EntityManager.persist(entity)` is intentional.
+- Be careful that `PostContentType.HTML` exists in the domain but is rejected at the current API boundary. HTML acceptance needs a separate sanitize/security design.
+- Be careful that `posts.content_type` has no Flyway/Liquibase migration yet because the project still relies on Hibernate schema generation in tests.
 - Known non-blocking issue: full test runs may print Hibernate schema-drop noise from shared MySQL Testcontainers + `ddl-auto=create-drop`, but the Gradle test result should still be successful.
