@@ -2,6 +2,8 @@ package com.dddblog.backend.blog.api;
 
 import org.springframework.http.HttpStatus;
 import org.springframework.security.core.annotation.AuthenticationPrincipal;
+import org.springframework.web.bind.annotation.GetMapping;
+import org.springframework.web.bind.annotation.PathVariable;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
 import org.springframework.web.bind.annotation.RequestMapping;
@@ -16,9 +18,11 @@ import com.dddblog.backend.auth.security.AuthenticatedMember;
 public class PostController {
 
 	private final PostApiService postApiService;
+	private final PostDetailApiService postDetailApiService;
 
-	public PostController(PostApiService postApiService) {
+	public PostController(PostApiService postApiService, PostDetailApiService postDetailApiService) {
 		this.postApiService = postApiService;
+		this.postDetailApiService = postDetailApiService;
 	}
 
 	@PostMapping
@@ -31,5 +35,10 @@ public class PostController {
 			throw new AuthenticationFailedException();
 		}
 		return postApiService.create(authenticatedMember.memberId(), request);
+	}
+
+	@GetMapping("/{postId}")
+	public PostDetailResponse getDetail(@PathVariable Long postId) {
+		return postDetailApiService.getDetail(postId);
 	}
 }

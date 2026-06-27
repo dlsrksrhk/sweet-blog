@@ -6,9 +6,12 @@ import static org.mockito.Mockito.doAnswer;
 import static org.mockito.Mockito.verify;
 import static org.mockito.Mockito.when;
 import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.get;
 import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
 import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import java.util.List;
 
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
@@ -24,6 +27,9 @@ import com.dddblog.backend.auth.security.AuthenticatedMember;
 import com.dddblog.backend.auth.security.JwtAuthentication;
 import com.dddblog.backend.auth.security.JwtAuthenticationEntryPoint;
 import com.dddblog.backend.auth.security.JwtAuthenticationFilter;
+import com.dddblog.backend.blog.application.PostNotFoundException;
+import com.dddblog.backend.blog.domain.PostContentType;
+import com.dddblog.backend.blog.domain.PostStatus;
 import com.dddblog.backend.common.api.GlobalExceptionHandler;
 import com.dddblog.backend.config.SecurityConfig;
 import com.dddblog.backend.member.domain.MemberId;
@@ -42,6 +48,9 @@ class PostControllerTest {
 
 	@MockitoBean
 	private PostApiService postApiService;
+
+	@MockitoBean
+	private PostDetailApiService postDetailApiService;
 
 	@MockitoBean
 	private JwtAuthenticationFilter jwtAuthenticationFilter;
@@ -180,6 +189,71 @@ class PostControllerTest {
 					"""))
 			.andExpect(status().isBadRequest())
 			.andExpect(jsonPath("$.message").value("Post title must not be blank."));
+	}
+
+	@Test
+	void 공개된_글_상세를_200으로_반환한다() throws Exception {
+		when(postDetailApiService.getDetail(10L))
+			.thenReturn(new PostDetailResponse(
+				10L,
+				1L,
+				"DDD 시작하기",
+				PostContentType.MARKDOWN,
+				"# DDD\n\n본문",
+				"DDD 소개",
+				List.of("ddd", "tdd"),
+				PostStatus.PUBLISHED
+			));
+
+		mockMvc.perform(get("/api/posts/{postId}", 10L))
+			.andExpect(status().isOk())
+			.andExpect(jsonPath("$.postId").value(10L))
+			.andExpect(jsonPath("$.authorId").value(1L))
+			.andExpect(jsonPath("$.title").value("DDD 시작하기"))
+			.andExpect(jsonPath("$.contentType").value("MARKDOWN"))
+			.andExpect(jsonPath("$.content").value("# DDD\n\n본문"))
+			.andExpect(jsonPath("$.summary").value("DDD 소개"))
+			.andExpect(jsonPath("$.tags[0]").value("ddd"))
+			.andExpect(jsonPath("$.tags[1]").value("tdd"))
+			.andExpect(jsonPath("$.status").value("PUBLISHED"));
+	}
+
+	@Test
+	void 토큰_없이_공개된_글_상세를_조회할_수_있다() throws Exception {
+		when(postDetailApiService.getDetail(10L))
+			.thenReturn(new PostDetailResponse(
+				10L,
+				1L,
+				"DDD 시작하기",
+				PostContentType.MARKDOWN,
+				"# DDD\n\n본문",
+				"DDD 소개",
+				List.of("ddd", "tdd"),
+				PostStatus.PUBLISHED
+			));
+
+		mockMvc.perform(get("/api/posts/{postId}", 10L))
+			.andExpect(status().isOk());
+	}
+
+	@Test
+	void 조회할_수_없는_글이면_404를_반환한다() throws Exception {
+		when(postDetailApiService.getDetail(10L))
+			.thenThrow(new PostNotFoundException());
+
+		mockMvc.perform(get("/api/posts/{postId}", 10L))
+			.andExpect(status().isNotFound())
+			.andExpect(jsonPath("$.message").value("Post not found."));
+	}
+
+	@Test
+	void 글_ID가_유효하지_않으면_400을_반환한다() throws Exception {
+		when(postDetailApiService.getDetail(0L))
+			.thenThrow(new IllegalArgumentException("Post id must be positive."));
+
+		mockMvc.perform(get("/api/posts/{postId}", 0L))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.message").value("Post id must be positive."));
 	}
 
 	private String validJson() {

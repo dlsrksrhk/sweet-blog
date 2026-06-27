@@ -7,6 +7,7 @@ import org.springframework.web.bind.annotation.ResponseStatus;
 import org.springframework.web.bind.annotation.RestControllerAdvice;
 
 import com.dddblog.backend.auth.application.AuthenticationFailedException;
+import com.dddblog.backend.blog.application.PostNotFoundException;
 
 @RestControllerAdvice
 public class GlobalExceptionHandler {
@@ -14,6 +15,12 @@ public class GlobalExceptionHandler {
 	@ExceptionHandler(AuthenticationFailedException.class)
 	ResponseEntity<ErrorResponse> handleAuthenticationFailedException(AuthenticationFailedException exception) {
 		return ResponseEntity.status(HttpStatus.UNAUTHORIZED)
+			.body(new ErrorResponse(exception.getMessage()));
+	}
+
+	@ExceptionHandler(PostNotFoundException.class)
+	ResponseEntity<ErrorResponse> handlePostNotFoundException(PostNotFoundException exception) {
+		return ResponseEntity.status(HttpStatus.NOT_FOUND)
 			.body(new ErrorResponse(exception.getMessage()));
 	}
 
