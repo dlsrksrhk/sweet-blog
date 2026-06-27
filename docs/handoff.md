@@ -8,8 +8,8 @@
 - Java for this project: `C:\java\jdk-21`
 - Spring Boot: `3.5.0`
 - Current branch: `master`
-- Latest completed backend slice: authenticated post creation API.
-- Latest completed backend slice commit: `e5c02a4 test: verify authenticated post creation flow`
+- Latest completed backend slice: public post detail read API.
+- Latest completed backend slice commit: `ab62990 test: localize post detail query fake helper`
 - Recent implementation commits are listed in Recent Commits.
 
 ## Project Rules
@@ -26,7 +26,7 @@ Important local rules:
 - Spring/JPA annotations are allowed in adapter, API, auth security, and config packages when explicitly designed.
 - Prefer TDD: write a small failing test first, then implement the minimum code to pass.
 - For new feature slices, use `superpowers:brainstorming`, write a Korean spec, then use `superpowers:writing-plans`.
-- There is no active feature worktree after the authenticated post creation API branch was merged locally into `master` and pushed to `origin/master`.
+- There is no active feature worktree after the public post detail read API branch was merged locally into `master` and pushed to `origin/master`.
 
 ## Implemented So Far
 
@@ -55,6 +55,8 @@ Important local rules:
 - `docs/superpowers/plans/2026-06-17-login-jwt-auth.md`
 - `docs/superpowers/specs/2026-06-27-authenticated-post-create-api-design.md`
 - `docs/superpowers/plans/2026-06-27-authenticated-post-create-api.md`
+- `docs/superpowers/specs/2026-06-27-post-detail-read-api-design.md`
+- `docs/superpowers/plans/2026-06-27-post-detail-read-api.md`
 
 ### Blog Domain Layer
 
@@ -300,6 +302,10 @@ Implemented:
 
 - `CreatePostCommand`
 - `CreatePostService`
+- `PostDetail`
+- `PostDetailQueryRepository`
+- `PostDetailQueryService`
+- `PostNotFoundException`
 - `PostRepository`
 
 Behavior:
@@ -318,12 +324,26 @@ Behavior:
   - `String summary`
   - `List<String> tags`
   - `PostStatus status`
+- `PostDetailQueryService.getDetail(postId)` returns public post detail read data.
+- `PostDetailQueryService.getDetail(postId)` rejects null post ID with `Post id must not be null.`
+- `PostDetailQueryService.getDetail(postId)` throws `PostNotFoundException` with `Post not found.` when no public result exists.
+- `PostDetailQueryRepository.findPublishedById(postId)` is a read port separate from the write-only `PostRepository`.
+- `PostDetail` fields are:
+  - `PostId postId`
+  - `AuthorId authorId`
+  - `PostTitle title`
+  - `PostContentType contentType`
+  - `PostContent content`
+  - `PostSummary summary`
+  - `List<TagName> tags`
+  - `PostStatus status`
 
 Important wiring note:
 
 - `CreatePostService` is still a pure Java class.
-- It is not annotated with `@Service`.
-- `backend/src/main/java/com/dddblog/backend/blog/config/BlogApplicationConfig.java` exposes it as a Spring bean for the API layer.
+- `PostDetailQueryService` is still a pure Java class.
+- They are not annotated with `@Service`.
+- `backend/src/main/java/com/dddblog/backend/blog/config/BlogApplicationConfig.java` exposes them as Spring beans for the API layer.
 
 ### Blog Persistence Layer
 
@@ -340,6 +360,7 @@ Implemented:
 - `SpringDataJpaPostRepository`
 - `SpringDataJpaTagRepository`
 - `JpaPostRepositoryAdapter`
+- `JpaPostDetailQueryRepositoryAdapter`
 
 Behavior:
 
@@ -352,6 +373,12 @@ Behavior:
 - New tags are created with `new JpaTagEntity(tagName.value())`.
 - It saves the post and returns `new PostId(savedEntity.id())`.
 - It persists `PostContentType` as `posts.content_type` with `EnumType.STRING`.
+- `JpaPostDetailQueryRepositoryAdapter` implements application port `PostDetailQueryRepository`.
+- `JpaPostDetailQueryRepositoryAdapter.findPublishedById(postId)` is annotated with `@Transactional(readOnly = true)`.
+- `findPublishedById(postId)` queries by ID and `PostStatus.PUBLISHED`.
+- `DRAFT` and `HIDDEN` rows are not returned by the public detail query.
+- The read adapter maps `JpaPostEntity` to `PostDetail`.
+- Tags in `PostDetail` are returned sorted by tag name ascending.
 
 Table mapping:
 
@@ -374,7 +401,7 @@ Table mapping:
 
 Important blog persistence exclusions still true:
 
-- No read repository method yet.
+- No public post list repository/query method yet.
 - No update/delete repository method yet.
 - No auditing columns yet.
 - No soft delete/view count/published at/cover image persistence yet.
@@ -396,6 +423,8 @@ Implemented:
 - `PostRequest`
 - `PostResponse`
 - `PostApiService`
+- `PostDetailResponse`
+- `PostDetailApiService`
 
 Behavior:
 
@@ -416,6 +445,22 @@ Behavior:
 - Successful creation returns `201 Created` with `{ "postId": ... }`.
 - `IllegalArgumentException` is returned as `400 Bad Request` through `GlobalExceptionHandler`.
 - Body-supplied `memberId` is ignored if a client sends one.
+- `GET /api/posts/{postId}` is public and does not require JWT Bearer authentication.
+- `GET /api/posts/{postId}` returns only `PUBLISHED` posts.
+- Missing posts, `DRAFT` posts, and `HIDDEN` posts all return `404 { "message": "Post not found." }`.
+- Public detail response fields are:
+  - `postId`
+  - `authorId`
+  - `title`
+  - `contentType`
+  - `content`
+  - `summary`
+  - `tags`
+  - `status`
+- Public detail currently includes only `authorId`; it does not join member nickname/profile data.
+- Public detail maps `content_markdown` to response field `content`.
+- Public detail returns tags in ascending normalized tag-name order.
+- `PostDetailApiService` converts `Long postId` to `PostId`, calls `PostDetailQueryService`, and maps `PostDetail` to `PostDetailResponse`.
 
 Example request:
 
@@ -503,11 +548,13 @@ Behavior:
 
 - `GlobalExceptionHandler` maps `IllegalArgumentException` to `400 Bad Request`.
 - `GlobalExceptionHandler` maps `AuthenticationFailedException` to `401 Unauthorized`.
+- `GlobalExceptionHandler` maps `PostNotFoundException` to `404 Not Found`.
 - Error body shape is `{ "message": "..." }`.
 - `PasswordConfig` provides a `BCryptPasswordEncoder`.
 - `BlogApplicationConfig` wires `CreatePostService` from pure application port `PostRepository`.
+- `BlogApplicationConfig` wires `PostDetailQueryService` from pure application port `PostDetailQueryRepository`.
 - `MemberApplicationConfig` wires `RegisterMemberService` from pure application ports.
-- `SecurityConfig` permits unauthenticated signup and login.
+- `SecurityConfig` permits unauthenticated signup, login, and `GET /api/posts/{postId}`.
 - `SecurityConfig` authenticates all other requests by default.
 - `SecurityConfig` is stateless and disables CSRF, HTTP Basic, form login, and server-side logout.
 - `SecurityConfig` adds `JwtAuthenticationFilter` before `UsernamePasswordAuthenticationFilter`.
@@ -540,7 +587,9 @@ Additional exclusions still true:
 
 - No Flyway/Liquibase migration yet.
 - No relation/FK between `posts.author_id` and `members.id` yet.
-- No post read/update/delete API yet.
+- No public post list API yet.
+- No author-private `DRAFT`/`HIDDEN` detail API yet.
+- No post update/delete API yet.
 - No HTML body acceptance or sanitize policy yet.
 - No cover image/image upload integration yet.
 
@@ -621,6 +670,7 @@ backend/src/test/java/com/dddblog/backend/support/MysqlDataJpaTestSupport.java
 Implemented application test fakes:
 
 - `FakePostRepository`
+- `FakePostDetailQueryRepository`
 - `FakeMemberRepository`
 - `FakeMemberIdGenerator`
 
@@ -675,6 +725,23 @@ Authenticated post creation test scenarios include:
 - `PostController` returns `400` for domain input errors such as blank title.
 - Vertical integration verifies signup, login, Bearer-token post creation, and persisted post values.
 
+Public post detail read test scenarios include:
+
+- `PostDetailQueryService` returns public post detail.
+- `PostDetailQueryService` returns `Post not found.` when no public detail exists.
+- `PostDetailQueryService` rejects null post ID.
+- `JpaPostDetailQueryRepositoryAdapter` reads `PUBLISHED` posts by ID.
+- `JpaPostDetailQueryRepositoryAdapter` does not return `DRAFT` posts.
+- `JpaPostDetailQueryRepositoryAdapter` does not return `HIDDEN` posts.
+- `JpaPostDetailQueryRepositoryAdapter` returns tags sorted by name ascending.
+- `PostDetailApiService` maps `PostDetail` to `PostDetailResponse`.
+- `PostDetailApiService` rejects invalid post IDs through `PostId`.
+- `PostController` returns `200` for public post detail.
+- `PostController` allows public post detail without token.
+- `PostController` returns `404 { "message": "Post not found." }` when a post cannot be publicly read.
+- `PostController` returns `400` for invalid post ID.
+- Vertical integration verifies signup, login, Bearer-token post creation, and tokenless public detail read.
+
 Important signup integration test detail:
 
 - The vertical integration test posts to `/api/auth/signup`.
@@ -702,6 +769,13 @@ Important post creation integration test detail:
 - It verifies `posts.content_markdown` stores the submitted body.
 - It verifies `posts.status` stores the submitted status.
 - It verifies tags are normalized and connected through `post_tags`.
+
+Important public post detail integration test detail:
+
+- The vertical integration test signs up a member, logs in, then posts a `PUBLISHED` post to `/api/posts`.
+- It calls `GET /api/posts/{postId}` without an `Authorization` header.
+- It asserts `200 OK`.
+- It verifies the response contains `postId`, `authorId`, `title`, `contentType`, `content`, `summary`, sorted tags, and `status`.
 
 Important persistence test detail:
 
@@ -767,7 +841,20 @@ Expected: no output.
 
 ## Recent Commits
 
-Most relevant authenticated post creation API commits now merged into `master` and pushed to `origin/master`:
+Most relevant public post detail read API commits now merged into `master` and pushed to `origin/master`:
+
+```text
+ab62990 test: localize post detail query fake helper
+7079ca3 test: verify public post detail flow
+5ad4e01 feat: add public post detail endpoint
+edb350c feat: add post detail api service
+f4d3569 feat: add post detail query adapter
+8fd4753 feat: add post detail query service
+4fdc9c5 docs: add post detail read api plan
+ee6e2b0 docs: add post detail read api design
+```
+
+Most relevant authenticated post creation API commits remain relevant background:
 
 ```text
 e5c02a4 test: verify authenticated post creation flow
@@ -821,26 +908,26 @@ ad51175 docs: add signup api design
 
 ## Recommended Next Step
 
-Recommended next milestone: post read API.
+Recommended next milestone: public post list API.
 
 ```text
 GET /api/posts
-GET /api/posts/{postId}
 ```
 
 Why this is next:
 
-- The project requirements sequence after authenticated post creation is public post list/detail read.
+- The project requirements sequence includes public post list/detail read.
 - `POST /api/posts` can now create persisted posts with author ID, content type, body, status, and tags.
-- A read slice will make the newly created content observable through HTTP.
-- Read behavior must decide how to handle `DRAFT`, `PUBLISHED`, and `HIDDEN` visibility.
+- `GET /api/posts/{postId}` can now read public `PUBLISHED` post detail without authentication.
+- A list slice will make public content discoverable before update/delete work.
 
 Suggested scope:
 
-- Brainstorm and write a spec for the first read slice.
-- Prefer a narrow first cut, likely public `GET /api/posts/{postId}` for `PUBLISHED` posts or public `GET /api/posts` list.
-- Decide whether to introduce a read repository/query model rather than stretching `PostRepository`, which is currently a write port.
-- Include author display needs carefully; there is no FK or cross-context read model yet.
+- Brainstorm and write a spec for public `GET /api/posts`.
+- Prefer a narrow first cut: return `PUBLISHED` posts only.
+- Decide pagination defaults, maximum page size, and sort order.
+- Decide the first response fields carefully; current detail response includes `authorId` only and there is still no FK or cross-context author display read model.
+- Reuse the read-query style introduced by `PostDetailQueryRepository` rather than stretching the write-only `PostRepository`.
 - Keep update/delete APIs, publish workflows, comments, media, view counts, and frontend work out of this slice unless explicitly approved.
 
 Do not start without a new task:
@@ -850,18 +937,21 @@ Do not start without a new task:
 ## Notes For Next Agent
 
 - Start by reading this handoff.
-- Then read `docs/requirements.md`, `docs/superpowers/specs/2026-06-27-authenticated-post-create-api-design.md`, and `docs/superpowers/plans/2026-06-27-authenticated-post-create-api.md`.
+- Then read `docs/requirements.md`, `docs/superpowers/specs/2026-06-27-post-detail-read-api-design.md`, and `docs/superpowers/plans/2026-06-27-post-detail-read-api.md`.
 - Start a new feature slice from `master`.
 - Use `superpowers:brainstorming` before designing the next read/update/delete feature slice.
-- Authenticated post creation API is merged into `master` and pushed to `origin/master` as of commit `e5c02a4`.
+- Public post detail read API is merged into `master` and pushed to `origin/master` as of commit `ab62990`.
 - Use `superpowers:finishing-a-development-branch` only when explicitly asked to finish the branch.
 - The user prefers Korean documentation and Korean test method names.
 - Preserve pure `blog.domain`, `blog.application`, `member.domain`, and `member.application` style.
 - Do not add unrelated refactors or cleanup.
-- Current `master` includes the signup, login/JWT, current-member, and authenticated post creation implementation commits.
+- Current `master` includes the signup, login/JWT, current-member, authenticated post creation, and public post detail read implementation commits.
 - Be careful with helper method names under `backend/src/test/java`: the naming-rule command flags ASCII `void` methods in all test source files, including fakes.
+- `FakePostDetailQueryRepository` intentionally uses Korean helper method `저장한다(...)` to avoid the broad test-name regex.
 - Be careful not to reintroduce DB-generated member IDs. `members.id` is assigned from `Member.id()`.
 - Be careful not to use Spring Data `save(entity)` for create-only member persistence with assigned IDs; `EntityManager.persist(entity)` is intentional.
 - Be careful that `PostContentType.HTML` exists in the domain but is rejected at the current API boundary. HTML acceptance needs a separate sanitize/security design.
 - Be careful that `posts.content_type` has no Flyway/Liquibase migration yet because the project still relies on Hibernate schema generation in tests.
+- `GET /api/posts/{postId}` is public only for `PUBLISHED` posts. Missing, `DRAFT`, and `HIDDEN` all map to `Post not found.`.
+- Public detail includes only `authorId`, not author nickname/profile.
 - Known non-blocking issue: full test runs may print Hibernate schema-drop noise from shared MySQL Testcontainers + `ddl-auto=create-drop`, but the Gradle test result should still be successful.
