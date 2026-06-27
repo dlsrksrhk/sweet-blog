@@ -1,0 +1,159 @@
+package com.dddblog.backend.blog.api;
+
+import static org.mockito.ArgumentMatchers.any;
+import static org.mockito.ArgumentMatchers.eq;
+import static org.mockito.Mockito.doAnswer;
+import static org.mockito.Mockito.verify;
+import static org.mockito.Mockito.when;
+import static org.springframework.security.test.web.servlet.request.SecurityMockMvcRequestPostProcessors.authentication;
+import static org.springframework.test.web.servlet.request.MockMvcRequestBuilders.post;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.jsonPath;
+import static org.springframework.test.web.servlet.result.MockMvcResultMatchers.status;
+
+import org.junit.jupiter.api.BeforeEach;
+import org.junit.jupiter.api.Test;
+import org.springframework.beans.factory.annotation.Autowired;
+import org.springframework.boot.test.autoconfigure.web.servlet.WebMvcTest;
+import org.springframework.context.annotation.Import;
+import org.springframework.http.MediaType;
+import org.springframework.test.context.bean.override.mockito.MockitoBean;
+import org.springframework.test.web.servlet.MockMvc;
+
+import com.dddblog.backend.auth.security.AuthenticatedMember;
+import com.dddblog.backend.auth.security.JwtAuthentication;
+import com.dddblog.backend.auth.security.JwtAuthenticationEntryPoint;
+import com.dddblog.backend.auth.security.JwtAuthenticationFilter;
+import com.dddblog.backend.common.api.GlobalExceptionHandler;
+import com.dddblog.backend.config.SecurityConfig;
+import com.dddblog.backend.member.domain.MemberId;
+import com.dddblog.backend.member.domain.MemberRole;
+
+import jakarta.servlet.FilterChain;
+import jakarta.servlet.ServletRequest;
+import jakarta.servlet.ServletResponse;
+
+@WebMvcTest(PostController.class)
+@Import({GlobalExceptionHandler.class, SecurityConfig.class, JwtAuthenticationEntryPoint.class})
+class PostControllerTest {
+
+	@Autowired
+	private MockMvc mockMvc;
+
+	@MockitoBean
+	private PostApiService postApiService;
+
+	@MockitoBean
+	private JwtAuthenticationFilter jwtAuthenticationFilter;
+
+	@BeforeEach
+	void 테스트_준비() throws Exception {
+		doAnswer(invocation -> {
+			ServletRequest request = invocation.getArgument(0);
+			ServletResponse response = invocation.getArgument(1);
+			FilterChain filterChain = invocation.getArgument(2);
+			filterChain.doFilter(request, response);
+			return null;
+		}).when(jwtAuthenticationFilter).doFilter(any(ServletRequest.class), any(ServletResponse.class), any(FilterChain.class));
+	}
+
+	@Test
+	void 인증된_요청이면_글을_생성하고_201과_글_ID를_반환한다() throws Exception {
+		when(postApiService.create(eq(new MemberId(1L)), any(PostRequest.class)))
+			.thenReturn(new PostResponse(10L));
+
+		mockMvc.perform(post("/api/posts")
+				.with(authentication(new JwtAuthentication(
+					new AuthenticatedMember(new MemberId(1L), MemberRole.MEMBER)
+				)))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(validJson()))
+			.andExpect(status().isCreated())
+			.andExpect(jsonPath("$.postId").value(10L));
+	}
+
+	@Test
+	void 인증된_회원_ID를_작성자_ID로_사용한다() throws Exception {
+		when(postApiService.create(eq(new MemberId(7L)), any(PostRequest.class)))
+			.thenReturn(new PostResponse(10L));
+
+		mockMvc.perform(post("/api/posts")
+				.with(authentication(new JwtAuthentication(
+					new AuthenticatedMember(new MemberId(7L), MemberRole.MEMBER)
+				)))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(validJson()))
+			.andExpect(status().isCreated());
+
+		verify(postApiService).create(eq(new MemberId(7L)), any(PostRequest.class));
+	}
+
+	@Test
+	void 토큰이_없으면_401을_반환한다() throws Exception {
+		mockMvc.perform(post("/api/posts")
+				.contentType(MediaType.APPLICATION_JSON)
+				.content(validJson()))
+			.andExpect(status().isUnauthorized())
+			.andExpect(jsonPath("$.message").value("Authentication failed."));
+	}
+
+	@Test
+	void HTML_본문_형식이면_400을_반환한다() throws Exception {
+		when(postApiService.create(eq(new MemberId(1L)), any(PostRequest.class)))
+			.thenThrow(new IllegalArgumentException("Post content type must be MARKDOWN."));
+
+		mockMvc.perform(post("/api/posts")
+				.with(authentication(new JwtAuthentication(
+					new AuthenticatedMember(new MemberId(1L), MemberRole.MEMBER)
+				)))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+					{
+					  "title": "DDD 시작하기",
+					  "contentType": "HTML",
+					  "content": "<p>본문</p>",
+					  "summary": "DDD 소개",
+					  "tags": [],
+					  "status": "DRAFT"
+					}
+					"""))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.message").value("Post content type must be MARKDOWN."));
+	}
+
+	@Test
+	void 제목이_blank이면_400을_반환한다() throws Exception {
+		when(postApiService.create(eq(new MemberId(1L)), any(PostRequest.class)))
+			.thenThrow(new IllegalArgumentException("Post title must not be blank."));
+
+		mockMvc.perform(post("/api/posts")
+				.with(authentication(new JwtAuthentication(
+					new AuthenticatedMember(new MemberId(1L), MemberRole.MEMBER)
+				)))
+				.contentType(MediaType.APPLICATION_JSON)
+				.content("""
+					{
+					  "title": "   ",
+					  "contentType": "MARKDOWN",
+					  "content": "본문",
+					  "summary": "DDD 소개",
+					  "tags": [],
+					  "status": "DRAFT"
+					}
+					"""))
+			.andExpect(status().isBadRequest())
+			.andExpect(jsonPath("$.message").value("Post title must not be blank."));
+	}
+
+	private String validJson() {
+		return """
+			{
+			  "title": "DDD 시작하기",
+			  "contentType": "MARKDOWN",
+			  "content": "# DDD\\n\\n본문",
+			  "summary": "DDD 소개",
+			  "tags": ["ddd", "tdd"],
+			  "status": "DRAFT"
+			}
+			""";
+	}
+}
